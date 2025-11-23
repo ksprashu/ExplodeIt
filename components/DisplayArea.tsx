@@ -47,6 +47,8 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status }) => {
 
   const { plan, infographicUrl, assembledUrl, videoUrl, hasVideo, components, audioUrl } = item;
 
+import ReactMarkdown from 'react-markdown';
+
   const downloadAsset = (url: string, filename: string) => {
     const link = document.createElement('a');
     link.href = url;
@@ -54,23 +56,6 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status }) => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-  };
-
-  const renderArticle = (text: string) => {
-    if (!text) return null;
-    return text.split('\n').map((line, i) => {
-      if (line.startsWith('## ')) {
-        return <h3 key={i} className="text-xl md:text-2xl font-bold text-cyan-400 mt-8 mb-4 border-b border-cyan-500/20 pb-2">{line.replace('## ', '')}</h3>;
-      }
-      if (line.startsWith('### ')) {
-         return <h4 key={i} className="text-lg font-bold text-white mt-6 mb-3">{line.replace('### ', '')}</h4>;
-      }
-      if (line.startsWith('- ')) {
-        return <li key={i} className="text-slate-300 leading-7 ml-4 mb-2 list-disc">{line.replace('- ', '')}</li>;
-      }
-      if (line.trim() === '') return <div key={i} className="h-3" />;
-      return <p key={i} className="text-slate-300 leading-7 mb-4 font-light text-lg">{line}</p>;
-    });
   };
 
   // LAYOUT LOGIC
@@ -353,7 +338,19 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status }) => {
                 {plan.sectionTitles?.article || "Encyclopedia Entry"}
             </h3>
             <div className="bg-slate-900/40 p-8 rounded-2xl border border-slate-800/50">
-                {plan.detailedArticle ? renderArticle(plan.detailedArticle) : (
+                {plan.detailedArticle ? (
+                  <ReactMarkdown 
+                    className="prose prose-invert max-w-none"
+                    components={{
+                      h2: ({node, ...props}) => <h3 className="text-xl md:text-2xl font-bold text-cyan-400 mt-8 mb-4 border-b border-cyan-500/20 pb-2" {...props} />,
+                      h3: ({node, ...props}) => <h4 className="text-lg font-bold text-white mt-6 mb-3" {...props} />,
+                      li: ({node, ...props}) => <li className="text-slate-300 leading-7 ml-4 mb-2 list-disc" {...props} />,
+                      p: ({node, ...props}) => <p className="text-slate-300 leading-7 mb-4 font-light text-lg" {...props} />,
+                    }}
+                  >
+                    {plan.detailedArticle}
+                  </ReactMarkdown>
+                ) : (
                     <div className="space-y-4 animate-pulse">
                         <div className="h-4 bg-slate-800 rounded w-3/4"></div>
                         <div className="h-4 bg-slate-800 rounded w-full"></div>

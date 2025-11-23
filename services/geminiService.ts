@@ -13,10 +13,16 @@ import {
   PlanSchema 
 } from "../constants";
 
+// Global mutable key state (supports BYOK)
+let globalApiKey = process.env.API_KEY || "";
+
+export const setGlobalApiKey = (key: string) => {
+  globalApiKey = key;
+};
+
 const getAI = () => {
-  const apiKey = process.env.API_KEY;
-  if (!apiKey) throw new Error("API Key not found");
-  return new GoogleGenAI({ apiKey });
+  if (!globalApiKey) throw new Error("API Key not configured. Please set your API key.");
+  return new GoogleGenAI({ apiKey: globalApiKey });
 };
 
 // Retry utility for robustness
@@ -440,3 +446,13 @@ function getWavHeader(dataLength: number, sampleRate: number, numChannels: numbe
       view.setUint8(offset + i, string.charCodeAt(i));
     }
   }
+
+// CLEANUP UTILITY
+export const revokeGenerationAssets = (item: GenerationItem) => {
+    if (item.videoUrl && item.videoUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(item.videoUrl);
+    }
+    if (item.audioUrl && item.audioUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(item.audioUrl);
+    }
+};

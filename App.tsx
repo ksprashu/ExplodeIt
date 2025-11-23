@@ -11,64 +11,64 @@ import {
   enrichComponentDetails, 
   generateVideo, 
   generateAudioNarration,
-  getRandomObject 
+  getRandomObject,
+  revokeGenerationAssets,
+  setGlobalApiKey
 } from './services/geminiService';
+import ApiKeyModal from './components/ApiKeyModal';
 
 const App: React.FC = () => {
   const [history, setHistory] = useState<GenerationItem[]>([]);
   const [currentId, setCurrentId] = useState<string | null>(null);
   const [status, setStatus] = useState<GenerationStatus>(GenerationStatus.IDLE);
   const [error, setError] = useState<string | null>(null);
-  const [apiKeySelected, setApiKeySelected] = useState(false);
+  
+  // API Key Management
+  const [apiKey, setApiKey] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
-    checkApiKey();
+    initializeApiKey();
   }, []);
 
-  const checkApiKey = async () => {
-    // 1. Strict Environment Variable Check (Build/Run time)
-    // We check length to ensure it's not an empty string placeholder
-    if (process.env.API_KEY && process.env.API_KEY.length > 0) {
-        setApiKeySelected(true);
+  const initializeApiKey = () => {
+    // 1. Check Local Storage
+    const storedKey = localStorage.getItem('gemini_api_key');
+    if (storedKey) {
+        setApiKey(storedKey);
+        setGlobalApiKey(storedKey);
         return;
     }
 
-    // 2. AI Studio Bridge Check
-    try {
-      const win = window as any;
-      if (win.aistudio && await win.aistudio.hasSelectedApiKey()) {
-        setApiKeySelected(true);
+    // 2. Check Env Var (Legacy/Deployment)
+    if (process.env.API_KEY && process.env.API_KEY.length > 0) {
+        setApiKey(process.env.API_KEY);
+        setGlobalApiKey(process.env.API_KEY);
         return;
-      }
-    } catch (e) {
-      console.error("Error checking API key status", e);
     }
-    
-    // 3. Default: Remain Locked
-    setApiKeySelected(false);
+
+    // 3. No key found -> Open Splash
+    setIsModalOpen(true);
   };
 
-  const handleSelectKey = async () => {
-    const win = window as any;
-    if (win.aistudio) {
-      try {
-        await win.aistudio.openSelectKey();
-        // Per instructions: assume success and proceed immediately to avoid race conditions
-        setApiKeySelected(true);
-        setError(null);
-      } catch (e) {
-        console.error(e);
-        setError("Failed to select API key via AI Studio.");
-        // If the selection failed/was cancelled, ensure we stay locked
-        setApiKeySelected(false);
-      }
-    } else {
-        // Fallback for deployed environments (Cloud Run, Netlify, etc.)
-        // We cannot generate a UI input for security reasons, so we direct the user to Env Var config.
-        console.warn("AI Studio environment not detected.");
-        setError("AI Studio bridge not found. Please set the API_KEY environment variable in your deployment configuration.");
-        setApiKeySelected(false);
-    }
+  const handleSaveKey = (key: string) => {
+      localStorage.setItem('gemini_api_key', key);
+      setApiKey(key);
+      setGlobalApiKey(key);
+      setIsModalOpen(false);
+      setError(null);
+  };
+
+  const handleOpenConfig = () => {
+      setIsModalOpen(true);
+      setError(null);
+  };
+
+  const handleClearHistory = () => {
+      history.forEach(item => revokeGenerationAssets(item));
+      setHistory([]);
+      setCurrentId(null);
+      setStatus(GenerationStatus.IDLE);
   };
 
   const updateItem = (id: string, changes: Partial<GenerationItem>) => {
@@ -78,10 +78,9 @@ const App: React.FC = () => {
   };
 
   const handleGenerate = async (prompt: string, withVideo: boolean, initialUsage: TokenUsage[] = []) => {
-    if (!apiKeySelected) {
-      await handleSelectKey();
-      // If still not selected (e.g. user cancelled or error), abort
-      if (!apiKeySelected) return;
+    if (!apiKey) {
+      setIsModalOpen(true);
+      return;
     }
 
     const id = Date.now().toString();
@@ -171,16 +170,26 @@ const App: React.FC = () => {
 
     } catch (err: any) {
       console.error(err);
-      setError(err.message || "An unknown error occurred");
+      
+      const msg = err.message || "An unknown error occurred";
+      
+      // Auth Error Handling
+      if (msg.includes("401") || msg.includes("API key") || msg.includes("403")) {
+           setError("Invalid API Key. Please check your key and try again.");
+           setIsModalOpen(true); // Re-open modal on auth failure
+           setStatus(GenerationStatus.FAILED);
+           return;
+      }
+
+      setError(msg);
       setStatus(GenerationStatus.FAILED);
     }
   };
 
   const handleSurprise = async (withVideo: boolean) => {
-      // Force check/select key before starting
-      if (!apiKeySelected) {
-        await handleSelectKey();
-        if (!apiKeySelected) return;
+      if (!apiKey) {
+        setIsModalOpen(true);
+        return;
       }
 
       setStatus(GenerationStatus.GENERATING_RANDOM);
@@ -192,6 +201,15 @@ const App: React.FC = () => {
           await handleGenerate(name, withVideo, [usage]);
       } catch (err: any) {
           console.error(err);
+           // Auth Error Handling for Surprise Mode too
+           const msg = err.message || "";
+           if (msg.includes("401") || msg.includes("API key") || msg.includes("403")) {
+                setError("Invalid API Key. Please check your key and try again.");
+                setIsModalOpen(true); 
+                setStatus(GenerationStatus.IDLE);
+                return;
+           }
+
           setError("Failed to dream up an object. Please try again.");
           setStatus(GenerationStatus.IDLE);
       }
@@ -205,6 +223,15 @@ const App: React.FC = () => {
   return (
     <div className="flex h-screen bg-slate-950 text-slate-200 font-sans overflow-hidden selection:bg-cyan-500/30">
       
+      <ApiKeyModal 
+        isOpen={isModalOpen} 
+        onSave={handleSaveKey} 
+        onCancel={() => setIsModalOpen(false)}
+        initialValue={apiKey || ''}
+        error={error}
+        isSplash={!apiKey} // Block if no key exists
+      />
+
       <Sidebar 
         history={history} 
         currentId={currentId} 
@@ -214,8 +241,9 @@ const App: React.FC = () => {
               setStatus(GenerationStatus.IDLE); 
             }
         }}
-        onChangeKey={handleSelectKey}
-        hasKey={apiKeySelected}
+        onClear={handleClearHistory}
+        onChangeKey={handleOpenConfig}
+        hasKey={!!apiKey}
       />
 
       <main className="flex-1 flex flex-col h-screen overflow-hidden relative">
@@ -226,46 +254,16 @@ const App: React.FC = () => {
 
         <div className="flex-1 overflow-y-auto p-6 md:p-12 scroll-smooth">
           
-          {!apiKeySelected && (
-            <div className="absolute inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-              <div className="bg-slate-900 border border-slate-700 p-8 rounded-2xl shadow-2xl max-w-md text-center">
-                <h2 className="text-2xl font-bold text-white mb-4">Welcome to ExplodeIt</h2>
-                <p className="text-slate-400 mb-6">To generate high-quality infographics and animations with Gemini 3 & Veo, please configure your API key.</p>
-                
-                {/* Error message specifically for key selection failure */}
-                {error && (
-                    <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-lg text-red-200 text-sm text-left animate-fade-in">
-                        <strong className="block mb-1 text-red-400 font-bold">Configuration Required</strong>
-                        {error}
-                    </div>
-                )}
-
-                <button 
-                  onClick={handleSelectKey}
-                  className="w-full py-3 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white rounded-lg font-bold shadow-lg shadow-cyan-500/20 transition-all"
-                >
-                  Select API Key (AI Studio)
-                </button>
-                <p className="mt-4 text-xs text-slate-500 leading-relaxed">
-                  Deployed? Set <code>API_KEY</code> in your environment variables.<br/>
-                  <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" rel="noreferrer" className="underline hover:text-cyan-400">
-                    Get a paid key here
-                  </a>
-                </p>
-              </div>
-            </div>
-          )}
-
           <InputArea 
             onSubmit={(prompt, withVideo) => handleGenerate(prompt, withVideo)}
             onSurprise={handleSurprise}
-            disabled={isProcessing || !apiKeySelected}
+            disabled={isProcessing || !apiKey}
           />
 
           <ProgressTracker status={status} />
 
-          {/* General App Error (only show if not blocked by splash screen to avoid duplicate/visual clutter) */}
-          {error && apiKeySelected && (
+          {/* General App Error (non-auth errors) */}
+          {error && !isModalOpen && (
             <div className="w-full max-w-4xl mx-auto mb-8 p-4 bg-red-500/10 border border-red-500/50 text-red-200 rounded-lg text-center">
               Error: {error}
             </div>
