@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { GenerationItem, ComponentPart, GenerationStatus } from '../types';
 
 interface DisplayAreaProps {
@@ -46,8 +47,6 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status }) => {
   }
 
   const { plan, infographicUrl, assembledUrl, videoUrl, hasVideo, components, audioUrl } = item;
-
-import ReactMarkdown from 'react-markdown';
 
   const downloadAsset = (url: string, filename: string) => {
     const link = document.createElement('a');
