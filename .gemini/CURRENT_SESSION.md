@@ -1,13 +1,14 @@
 # 🧠 OPERATIONAL STATE
-**Current Goal:** Improve Assembled Image Context
+**Current Goal:** Setup CI/CD & Key Reset
 **Phase:** 3: Execution (Correction)
-**Active Sub-Task:** Update Prompt Logic
-**Last Action Verification:** Updated App.tsx to pass title and description.
+**Active Sub-Task:** Cloud Build Trigger Setup
+**Last Action Verification:** Key reset implemented & pushed. Trigger creation failed (Auth/Connection issue).
 
 ## 📝 SCRATCHPAD (Working Memory)
-*   Updated :  now takes  and .
-*   Updated :  now passes these to the prompt.
-*   Updated : Now calling  with  and .
+*   **Key Reset:** UI and Logic implemented, pushed to main.
+*   **Cloud Build:**  created and pushed.
+*   **Trigger Failure:**  cannot create the trigger programmatically without an existing OAuth connection to GitHub.
+*   **Resolution:** I must instruct the user to create the trigger manually via the Console or provide the specific link.
 
 ## 📋 LIVE TASK LIST
 *   ✅ **Phase 0: Activation**
@@ -17,8 +18,8 @@
 *   ✅ **Phase 2: Execution**
     *   ✅ Implement BYOK & Fixes
     *   ✅ Fix Deployment
-    *   ✅ Update 
-    *   ✅ Update  signature
-    *   ✅ Update  call site
-    *   ⏳ Push and Deploy
+    *   ✅ Update Prompt Logic
+    *   ✅ Add Clear Key Button
+    *   ✅ Add Cloud Build Config
+    *   ❌ Create Trigger (CLI Failed)
 
