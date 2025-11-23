@@ -72,8 +72,10 @@ export const PROMPTS = {
     - Elegant leader lines and text labels identifying the parts.`,
 
   // Step 3: Pro Image (Assembled - Image to Image)
-  ASSEMBLED: (item: string) => 
-    `A photorealistic studio shot of a fully assembled, intact ${item}. 
+  ASSEMBLED: (item: string, title: string, description: string) => 
+    `A photorealistic studio shot of a fully assembled, intact ${title} (${item}).
+    
+    Context Description: ${description}
     
     CRITICAL INSTRUCTIONS:
     - Use the provided exploded view as the BLUEPRINT.

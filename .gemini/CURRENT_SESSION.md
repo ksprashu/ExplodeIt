@@ -1,24 +1,24 @@
 # 🧠 OPERATIONAL STATE
-**Current Goal:** Deploy ExplodeIt to Google Cloud Run
-**Phase:** 4: Finalization
-**Active Sub-Task:** Deployment Verification
-**Last Action Verification:** Deployment successful. URL obtained.
+**Current Goal:** Improve Assembled Image Context
+**Phase:** 3: Execution (Correction)
+**Active Sub-Task:** Update Prompt Logic
+**Last Action Verification:** Updated App.tsx to pass title and description.
 
 ## 📝 SCRATCHPAD (Working Memory)
-*   **URL**: https://explodeit-the-ai-encyclopedia-957639311562.us-central1.run.app
-*   **Architecture**: React (Vite) -> Nginx (Docker) -> Cloud Run.
-*   **Auth**: BYOK model active.
-*   **Repo**: Pushed to main.
+*   Updated :  now takes  and .
+*   Updated :  now passes these to the prompt.
+*   Updated : Now calling  with  and .
 
 ## 📋 LIVE TASK LIST
 *   ✅ **Phase 0: Activation**
     *   ✅ Initialize session state
 *   ✅ **Phase 1: Deep Analysis**
     *   ✅ Read config and core files
-    *   ✅ Read application logic (App.tsx, Service)
 *   ✅ **Phase 2: Execution**
     *   ✅ Implement BYOK & Fixes
-    *   ✅ Create Dockerfile & Nginx config
-    *   ✅ Git Commit & Push
-    *   ✅ Deploy to Cloud Run
+    *   ✅ Fix Deployment
+    *   ✅ Update 
+    *   ✅ Update  signature
+    *   ✅ Update  call site
+    *   ⏳ Push and Deploy
 
