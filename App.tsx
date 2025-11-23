@@ -59,6 +59,14 @@ const App: React.FC = () => {
       setError(null);
   };
 
+  const handleClearKey = () => {
+    localStorage.removeItem('gemini_api_key');
+    setApiKey(null);
+    setGlobalApiKey("");
+    setIsModalOpen(true); // Re-open as splash since we need a key
+    setError(null);
+  };
+
   const handleOpenConfig = () => {
       setIsModalOpen(true);
       setError(null);
@@ -227,6 +235,7 @@ const App: React.FC = () => {
         isOpen={isModalOpen} 
         onSave={handleSaveKey} 
         onCancel={() => setIsModalOpen(false)}
+        onClear={handleClearKey}
         initialValue={apiKey || ''}
         error={error}
         isSplash={!apiKey} // Block if no key exists

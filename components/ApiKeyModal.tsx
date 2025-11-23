@@ -4,12 +4,13 @@ interface ApiKeyModalProps {
   isOpen: boolean;
   onSave: (key: string) => void;
   onCancel: () => void;
+  onClear?: () => void;
   initialValue?: string;
   error?: string | null;
   isSplash?: boolean; // If true, it blocks the screen (initial setup)
 }
 
-const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, onSave, onCancel, initialValue = '', error, isSplash = false }) => {
+const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, onSave, onCancel, onClear, initialValue = '', error, isSplash = false }) => {
   const [key, setKey] = useState(initialValue);
   const [isValid, setIsValid] = useState(false);
 
@@ -98,13 +99,23 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, onSave, onCancel, ini
           {/* Actions */}
           <div className="flex gap-3 pt-2">
             {!isSplash && (
-              <button
-                type="button"
-                onClick={onCancel}
-                className="flex-1 px-4 py-3 rounded-lg font-bold text-slate-400 hover:text-white hover:bg-slate-800 transition-all"
-              >
-                Cancel
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={onClear}
+                  className="px-4 py-3 rounded-lg font-bold text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all border border-red-500/20"
+                  title="Clear API Key"
+                >
+                  Clear Key
+                </button>
+                <button
+                  type="button"
+                  onClick={onCancel}
+                  className="px-4 py-3 rounded-lg font-bold text-slate-400 hover:text-white hover:bg-slate-800 transition-all"
+                >
+                  Cancel
+                </button>
+              </>
             )}
             <button
               type="submit"
