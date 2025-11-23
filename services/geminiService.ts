@@ -319,7 +319,7 @@ export const generateVideo = async (itemName: string, assembledUrl: string, info
         const downloadLink = operation.response?.generatedVideos?.[0]?.video?.uri;
         if (!downloadLink) throw new Error("Video generation failed");
 
-        const videoResponse = await fetch(`${downloadLink}&key=${process.env.API_KEY}`);
+        const videoResponse = await fetch(`${downloadLink}&key=${globalApiKey}`);
         const videoBlob = await videoResponse.blob();
         const url = URL.createObjectURL(videoBlob);
 
