@@ -6,9 +6,10 @@ interface SidebarProps {
   currentId: string | null;
   onSelect: (item: GenerationItem) => void;
   onChangeKey: () => void;
+  hasKey: boolean;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ history, currentId, onSelect, onChangeKey }) => {
+const Sidebar: React.FC<SidebarProps> = ({ history, currentId, onSelect, onChangeKey, hasKey }) => {
   
   const totalStats = useMemo(() => {
     return history.reduce((acc, item) => {
@@ -93,12 +94,27 @@ const Sidebar: React.FC<SidebarProps> = ({ history, currentId, onSelect, onChang
         
         <button 
           onClick={onChangeKey}
-          className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-slate-600 rounded-lg text-slate-400 hover:text-white transition-all flex items-center justify-center gap-2 font-medium"
+          className={`w-full py-2.5 rounded-lg transition-all flex items-center justify-center gap-2 font-medium border ${
+            hasKey 
+              ? 'bg-slate-800 hover:bg-slate-700 border-slate-700 hover:border-slate-600 text-slate-400 hover:text-white' 
+              : 'bg-red-500/10 border-red-500/50 text-red-400 hover:bg-red-500/20 shadow-[0_0_10px_rgba(239,68,68,0.1)]'
+          }`}
         >
-          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-          </svg>
-          Update API Key
+          {hasKey ? (
+            <>
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+              </svg>
+              Update API Key
+            </>
+          ) : (
+            <>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              Key Not Configured
+            </>
+          )}
         </button>
       </div>
     </aside>
