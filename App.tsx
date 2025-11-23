@@ -129,7 +129,7 @@ const App: React.FC = () => {
 
       // 3. Generate Assembled Image (Pro Image)
       setStatus(GenerationStatus.GENERATING_ASSEMBLY);
-      const assembledImg = await generateAssembledImage(prompt, infoImg.url);
+      const assembledImg = await generateAssembledImage(prompt, plan.displayTitle, plan.originStory, infoImg.url);
       usageLog.push(assembledImg.usage);
       updateItem(id, { assembledUrl: assembledImg.url, usage: usageLog });
 

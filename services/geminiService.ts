@@ -165,10 +165,10 @@ export const generateInfographic = async (itemName: string, plan: ObjectPlan): P
 };
 
 // 4. GENERATE ASSEMBLED IMAGE (Pro Image - Image to Image)
-export const generateAssembledImage = async (itemName: string, infographicBase64: string): Promise<{ url: string; usage: TokenUsage }> => {
+export const generateAssembledImage = async (itemName: string, title: string, description: string, infographicBase64: string): Promise<{ url: string; usage: TokenUsage }> => {
     const ai = getAI();
     const cleanBase64 = infographicBase64.replace(/^data:image\/\w+;base64,/, "");
-    const prompt = PROMPTS.ASSEMBLED(itemName);
+    const prompt = PROMPTS.ASSEMBLED(itemName, title, description);
 
     return callWithRetry(async () => {
         const response = await ai.models.generateContent({
