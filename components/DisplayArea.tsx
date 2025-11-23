@@ -49,6 +49,13 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status }) => {
       setIsPlaying(!isPlaying);
   };
 
+  const resetAudio = () => {
+      if (!audioRef.current) return;
+      audioRef.current.currentTime = 0;
+      audioRef.current.play();
+      setIsPlaying(true);
+  };
+
   if (!item || !item.plan) {
     return (
       <div className="flex-1 flex items-center justify-center text-slate-500 flex-col gap-4 min-h-[400px]">
@@ -223,10 +230,11 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status }) => {
             </div>
             <div className="flex items-center gap-4">
                 {audioUrl ? (
-                    <div className="bg-slate-900 border border-slate-700 rounded-full p-1 pr-4 flex items-center gap-3 shadow-lg shadow-purple-900/20">
+                    <div className="bg-slate-900 border border-slate-700 rounded-full p-1 pr-4 flex items-center gap-2 shadow-lg shadow-purple-900/20">
                         <button 
                             onClick={toggleAudio}
                             className="w-10 h-10 rounded-full bg-purple-600 hover:bg-purple-500 text-white flex items-center justify-center transition-all"
+                            title={isPlaying ? "Pause" : "Play"}
                         >
                             {isPlaying ? (
                                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/></svg>
@@ -234,7 +242,18 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status }) => {
                                 <svg className="w-4 h-4 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
                             )}
                         </button>
-                        <div className="flex flex-col">
+                        
+                        <button 
+                            onClick={resetAudio}
+                            className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition-all"
+                            title="Restart Audio"
+                        >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                        </button>
+
+                        <div className="flex flex-col ml-1">
                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Audio Guide</span>
                             <span className="text-xs text-purple-300 font-medium">Narrated by {plan.audioVibe?.voiceName || 'Gemini'}</span>
                         </div>
