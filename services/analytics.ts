@@ -1,6 +1,7 @@
 import ReactGA from "react-ga4";
 
-const GA_ID = import.meta.env.VITE_GOOGLE_ANALYTICS_ID;
+// Hardcoded Measurement ID for GitHub Pages & Cloud Run support
+const GA_ID = "G-LVTH2R4DZR";
 
 export const initGA = () => {
   if (GA_ID) {
