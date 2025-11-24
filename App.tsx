@@ -31,6 +31,7 @@ import {
   revokeGenerationAssets,
   setGlobalApiKey
 } from './services/geminiService';
+import { initGA } from './services/analytics';
 import ApiKeyModal from './components/ApiKeyModal';
 
 const App: React.FC = () => {
@@ -45,6 +46,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     initializeApiKey();
+    initGA();
   }, []);
 
   const initializeApiKey = () => {

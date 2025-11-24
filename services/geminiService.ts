@@ -28,6 +28,7 @@ import {
   PRICING, 
   PlanSchema 
 } from "../constants";
+import { trackGeminiCall } from "./analytics";
 
 // Global mutable key state (supports BYOK)
 let globalApiKey = process.env.API_KEY || "";
@@ -101,6 +102,8 @@ export const getRandomObject = async (): Promise<{ name: string; usage: TokenUsa
 
       const name = response.text?.trim() || "Vintage Typewriter";
       
+      trackGeminiCall(MODEL_SURPRISE, "Surprise Me", "success");
+
       return {
         name,
         usage: {
@@ -129,6 +132,8 @@ export const planObject = async (itemName: string): Promise<{ data: ObjectPlan; 
 
         if (!response.text) throw new Error("Failed to plan object");
         const data = JSON.parse(response.text) as ObjectPlan;
+
+        trackGeminiCall(MODEL_PLANNING, "Plan Object", "success", response.usageMetadata?.candidatesTokenCount || 0);
 
         return {
             data,
@@ -167,6 +172,8 @@ export const generateInfographic = async (itemName: string, plan: ObjectPlan): P
             }
         }
         if (!base64Data) throw new Error("Failed to generate infographic");
+
+        trackGeminiCall(MODEL_IMAGE, "Generate Infographic", "success");
 
         return {
             url: `data:image/png;base64,${base64Data}`,
@@ -211,6 +218,8 @@ export const generateAssembledImage = async (itemName: string, title: string, de
             }
         }
         if (!base64Data) throw new Error("Failed to generate assembled image");
+
+        trackGeminiCall(MODEL_IMAGE, "Generate Assembled Image", "success");
 
         return {
             url: `data:image/png;base64,${base64Data}`,
@@ -277,6 +286,8 @@ export const enrichComponentDetails = async (itemName: string, components: strin
                 costEstimate: calculateCost(MODEL_AUTHORING, response.usageMetadata?.promptTokenCount || 0, response.usageMetadata?.candidatesTokenCount || 0)
             });
 
+            trackGeminiCall(MODEL_AUTHORING, "Enrich Details Batch", "success", response.usageMetadata?.candidatesTokenCount || 0);
+
             // Attach sources to each component in this batch for attribution
             return result.components.map(c => ({
                 ...c,
@@ -339,6 +350,8 @@ export const generateVideo = async (itemName: string, assembledUrl: string, info
         const videoBlob = await videoResponse.blob();
         const url = URL.createObjectURL(videoBlob);
 
+        trackGeminiCall(MODEL_VIDEO, "Generate Video", "success");
+
         return {
             url,
             usage: {
@@ -370,6 +383,9 @@ export const generateAudioNarration = async (itemName: string, originStory: stri
             outputTokens: response.usageMetadata?.candidatesTokenCount || 0,
             costEstimate: calculateCost(MODEL_SCRIPT, response.usageMetadata?.promptTokenCount || 0, response.usageMetadata?.candidatesTokenCount || 0)
         });
+        
+        trackGeminiCall(MODEL_SCRIPT, "Generate Script", "success", response.usageMetadata?.candidatesTokenCount || 0);
+
         return script;
     }, 3, 1000, "Script Gen");
 
@@ -420,6 +436,8 @@ export const generateAudioNarration = async (itemName: string, originStory: stri
             outputTokens: 0,
             costEstimate: calculateCost(MODEL_TTS, scriptRes.length, 0)
         });
+
+        trackGeminiCall(MODEL_TTS, "Generate Audio", "success", scriptRes.length);
 
         return url;
     }, 3, 2000, "TTS Gen");
