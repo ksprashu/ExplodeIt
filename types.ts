@@ -39,6 +39,8 @@ export interface ComponentPart {
 export interface ObjectPlan {
   displayTitle: string;
   category: string;
+  domainType: 'PHYSICAL' | 'SOFTWARE' | 'CONCEPTUAL' | 'BIOLOGICAL' | 'OTHER';
+  visualMetaphor: string; // Description of how to visualize this (e.g. "Exploded View", "Architecture Diagram", "Mind Map")
   sectionTitles: {
     origin: string;
     anatomy: string;

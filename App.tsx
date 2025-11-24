@@ -155,7 +155,7 @@ const App: React.FC = () => {
 
       // 3. Generate Assembled Image (Pro Image)
       setStatus(GenerationStatus.GENERATING_ASSEMBLY);
-      const assembledImg = await generateAssembledImage(prompt, plan.displayTitle, plan.originStory, infoImg.url);
+      const assembledImg = await generateAssembledImage(prompt, plan.displayTitle, plan.originStory, plan.domainType, infoImg.url);
       usageLog.push(assembledImg.usage);
       updateItem(id, { assembledUrl: assembledImg.url, usage: usageLog });
 
@@ -173,7 +173,7 @@ const App: React.FC = () => {
       // Video Task
       if (withVideo && assembledImg.url && infoImg.url) {
           promises.push(
-              generateVideo(prompt, assembledImg.url, infoImg.url)
+              generateVideo(prompt, plan.domainType, plan.visualMetaphor, assembledImg.url, infoImg.url)
               .then(videoRes => {
                   usageLog.push(videoRes.usage);
                   updateItem(id, { videoUrl: videoRes.url, usage: usageLog });

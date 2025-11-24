@@ -125,6 +125,7 @@ export const planObject = async (itemName: string): Promise<{ data: ObjectPlan; 
             model: MODEL_PLANNING,
             contents: PROMPTS.PLAN_OBJECT(itemName),
             config: {
+                tools: [{ googleSearch: {} }],
                 responseMimeType: "application/json",
                 responseSchema: PlanSchema
             }
@@ -150,7 +151,7 @@ export const planObject = async (itemName: string): Promise<{ data: ObjectPlan; 
 // 3. GENERATE INFOGRAPHIC (Pro Image)
 export const generateInfographic = async (itemName: string, plan: ObjectPlan): Promise<{ url: string; usage: TokenUsage }> => {
     const ai = getAI();
-    const prompt = PROMPTS.INFOGRAPHIC(itemName, plan.visualStylePrompt, plan.componentList);
+    const prompt = PROMPTS.INFOGRAPHIC(itemName, plan.visualStylePrompt, plan.componentList, plan.domainType, plan.visualMetaphor);
 
     return callWithRetry(async () => {
         const response = await ai.models.generateContent({
@@ -188,10 +189,10 @@ export const generateInfographic = async (itemName: string, plan: ObjectPlan): P
 };
 
 // 4. GENERATE ASSEMBLED IMAGE (Pro Image - Image to Image)
-export const generateAssembledImage = async (itemName: string, title: string, description: string, infographicBase64: string): Promise<{ url: string; usage: TokenUsage }> => {
+export const generateAssembledImage = async (itemName: string, title: string, description: string, domain: string, infographicBase64: string): Promise<{ url: string; usage: TokenUsage }> => {
     const ai = getAI();
     const cleanBase64 = infographicBase64.replace(/^data:image\/\w+;base64,/, "");
-    const prompt = PROMPTS.ASSEMBLED(itemName, title, description);
+    const prompt = PROMPTS.ASSEMBLED(itemName, title, description, domain);
 
     return callWithRetry(async () => {
         const response = await ai.models.generateContent({
@@ -314,7 +315,7 @@ export const enrichComponentDetails = async (itemName: string, components: strin
 };
 
 // 6. GENERATE VIDEO (Veo)
-export const generateVideo = async (itemName: string, assembledUrl: string, infographicUrl: string): Promise<{ url: string; usage: TokenUsage }> => {
+export const generateVideo = async (itemName: string, domain: string, metaphor: string, assembledUrl: string, infographicUrl: string): Promise<{ url: string; usage: TokenUsage }> => {
     const ai = getAI();
     const cleanStart = assembledUrl.replace(/^data:image\/\w+;base64,/, "");
     const cleanEnd = infographicUrl.replace(/^data:image\/\w+;base64,/, "");
@@ -322,7 +323,7 @@ export const generateVideo = async (itemName: string, assembledUrl: string, info
     return callWithRetry(async () => {
         let operation = await ai.models.generateVideos({
             model: MODEL_VIDEO,
-            prompt: PROMPTS.VIDEO(itemName),
+            prompt: PROMPTS.VIDEO(itemName, domain, metaphor),
             image: {
                 imageBytes: cleanStart,
                 mimeType: 'image/png',
