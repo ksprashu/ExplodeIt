@@ -16,6 +16,7 @@ import {
 } from '../types';
 import { CANONICAL_MODEL_PRESETS } from '../constants';
 import { mockCommunityStorage } from './mockCommunityStorage';
+import { mediaCache } from './mediaCache';
 
 // ============================================================================
 // Binary Conversion & Slug Utilities
@@ -78,6 +79,18 @@ export async function urlToBlob(
     return dataUrlToBlob(source, fallbackMime);
   }
 
+  // Cache-first lookup for remote HTTP/HTTPS resources
+  if (source.startsWith('http://') || source.startsWith('https://')) {
+    try {
+      const cachedBlob = await mediaCache.getMediaBlob(source);
+      if (cachedBlob) {
+        return cachedBlob;
+      }
+    } catch (err) {
+      console.warn('[CommunityStorage] mediaCache lookup error, falling back to network:', err);
+    }
+  }
+
   if (source.startsWith('blob:') || source.startsWith('http://') || source.startsWith('https://')) {
     try {
       const response = await fetch(source);
@@ -85,10 +98,16 @@ export async function urlToBlob(
         console.warn(`[CommunityStorage] HTTP ${response.status} resolving ${source}`);
       }
       const fetchedBlob = await response.blob();
-      if (!fetchedBlob.type || fetchedBlob.type === 'application/octet-stream') {
-        return new Blob([fetchedBlob], { type: fallbackMime });
+      const finalBlob = (!fetchedBlob.type || fetchedBlob.type === 'application/octet-stream')
+        ? new Blob([fetchedBlob], { type: fallbackMime })
+        : fetchedBlob;
+
+      // Populate mediaCache for future requests
+      if (source.startsWith('http://') || source.startsWith('https://')) {
+        mediaCache.setMediaBlob(source, finalBlob).catch(() => {});
       }
-      return fetchedBlob;
+
+      return finalBlob;
     } catch (err) {
       console.warn(`[CommunityStorage] Error fetching ${source}, falling back:`, err);
       return new Blob([source], { type: fallbackMime });
@@ -497,4 +516,47 @@ export async function fetchCommunityTopic(topicId: string): Promise<SanitizedGen
     console.warn(`[CommunityStorage] Could not fetch topic '${topicId}', falling back to mock driver:`, err);
   }
   return await mockCommunityStorage.fetchTopic(topicId);
+}
+
+/**
+ * Resolves a media URL to an ObjectURL via mediaCache:
+ * 1. Checks mediaCache.getMediaBlob(url)
+ * 2. If hit, returns pooled ObjectURL immediately
+ * 3. If miss, fetches blob from network, writes to cache, and returns pooled ObjectURL
+ */
+export async function getCachedMediaObjectURL(
+  url: string,
+  fallbackMime = 'application/octet-stream'
+): Promise<string> {
+  if (!url) return '';
+  if (url.startsWith('data:') || url.startsWith('blob:')) {
+    return url;
+  }
+  try {
+    const blob = await urlToBlob(url, fallbackMime);
+    if (blob && blob.size > 0) {
+      return mediaCache.getCachedObjectURL(url, blob);
+    }
+  } catch (err) {
+    console.warn(`[CommunityStorage] Failed to resolve cached ObjectURL for ${url}:`, err);
+  }
+  return url;
+}
+
+/**
+ * Preloads all media assets for a community catalog item into mediaCache.
+ */
+export async function preloadCommunityTopicMedia(item: CommunityCatalogItem): Promise<{
+  infographicUrl: string;
+  assembledUrl: string;
+  videoUrl?: string;
+  audioUrl: string;
+}> {
+  const [infographicUrl, assembledUrl, audioUrl, videoUrl] = await Promise.all([
+    getCachedMediaObjectURL(item.infographicUrl, 'image/png'),
+    getCachedMediaObjectURL(item.assembledUrl, 'image/png'),
+    getCachedMediaObjectURL(item.audioUrl, 'audio/mpeg'),
+    item.videoUrl ? getCachedMediaObjectURL(item.videoUrl, 'video/mp4') : Promise.resolve(undefined),
+  ]);
+  return { infographicUrl, assembledUrl, audioUrl, videoUrl };
 }

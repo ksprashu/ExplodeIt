@@ -27,6 +27,7 @@ import { initGA } from './services/analytics';
 import ApiKeyModal from './components/ApiKeyModal';
 import CommunityContributeModal from './components/CommunityContributeModal';
 import { bundleGenerationItem, uploadCommunityBundle } from './services/communityStorage';
+import { revokeAllObjectURLs } from './services/mediaCache';
 
 const STORAGE_PREFS_KEY = 'explodeit_model_preferences';
 const STORAGE_CONTRACT_KEY = 'explodeit_model_config_v1';
@@ -104,6 +105,15 @@ const App: React.FC = () => {
   useEffect(() => {
     initializeApiKey();
     initGA();
+
+    const handleBeforeUnload = () => {
+      revokeAllObjectURLs();
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      revokeAllObjectURLs();
+    };
   }, []);
 
   const initializeApiKey = () => {
@@ -223,6 +233,7 @@ const App: React.FC = () => {
 
   const handleClearHistory = () => {
       history.forEach(item => revokeGenerationAssets(item));
+      revokeAllObjectURLs();
       setHistory([]);
       setCurrentId(null);
       setStatus(GenerationStatus.IDLE);

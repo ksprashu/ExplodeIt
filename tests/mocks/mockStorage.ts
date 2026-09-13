@@ -58,7 +58,16 @@ export class MockIndexedDBMediaCache {
   }
 
   async setMediaBlob(urlOrKey: string, blob: Blob): Promise<void> {
-    const size = blob.size || 1024;
+    const size = typeof blob?.size === 'number' ? blob.size : 1024;
+    // Edge case: single blob exceeds total cache quota
+    if (size > this.maxSizeBytes) {
+      return;
+    }
+    // If updating existing entry, adjust current size
+    const existing = this.db.get(urlOrKey);
+    if (existing) {
+      this.currentSizeBytes -= existing.size;
+    }
     // Evict if over quota
     while (this.currentSizeBytes + size > this.maxSizeBytes && this.db.size > 0) {
       this.evictLRU();
@@ -76,15 +85,26 @@ export class MockIndexedDBMediaCache {
     if (this.objectUrls.has(urlOrKey)) {
       return this.objectUrls.get(urlOrKey)!;
     }
-    const mockUrl = 'blob:http://localhost:3000/' + (++this.urlCounter);
+    const mockUrl = typeof URL !== 'undefined' && URL.createObjectURL
+      ? URL.createObjectURL(blob)
+      : 'blob:http://localhost:3000/' + (++this.urlCounter);
     this.objectUrls.set(urlOrKey, mockUrl);
     return mockUrl;
   }
 
   async clearCache(): Promise<void> {
+    this.revokeAllObjectURLs();
     this.db.clear();
-    this.objectUrls.clear();
     this.currentSizeBytes = 0;
+  }
+
+  revokeAllObjectURLs(): void {
+    for (const url of this.objectUrls.values()) {
+      if (typeof URL !== 'undefined' && URL.revokeObjectURL) {
+        URL.revokeObjectURL(url);
+      }
+    }
+    this.objectUrls.clear();
   }
 
   getEntryCount(): number {
@@ -108,6 +128,10 @@ export class MockIndexedDBMediaCache {
       const entry = this.db.get(oldestKey);
       if (entry) {
         this.currentSizeBytes -= entry.size;
+      }
+      const existingUrl = this.objectUrls.get(oldestKey);
+      if (existingUrl && typeof URL !== 'undefined' && URL.revokeObjectURL) {
+        URL.revokeObjectURL(existingUrl);
       }
       this.db.delete(oldestKey);
       this.objectUrls.delete(oldestKey);

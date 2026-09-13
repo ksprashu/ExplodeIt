@@ -5,6 +5,7 @@
  */
 
 import { SanitizedGenerationBundle, CommunityCatalogItem, UploadResult } from '../types';
+import { mediaCache } from './mediaCache';
 
 export const LOCAL_STORAGE_CATALOG_KEY = 'explodeit_mock_community_catalog_v1';
 const DB_NAME = 'explodeit_community_mock_v1';
@@ -65,7 +66,6 @@ const inMemoryCatalog: Map<string, CommunityCatalogItem> = new Map(
   SEED_COMMUNITY_CATALOG.map((item) => [item.id, item])
 );
 const inMemoryBundles: Map<string, SanitizedGenerationBundle> = new Map();
-const inMemoryObjectUrls: Map<string, string> = new Map();
 
 // Helper to determine test environment
 const isTestEnvironment = (): boolean => {
@@ -130,27 +130,24 @@ export class MockCommunityStorageDriver {
 
     const topicId = bundle.manifest.id;
 
-    // Create ObjectURLs for binary Blobs if in browser environment
-    const createSafeUrl = (blob?: Blob, fallback = ''): string => {
-      if (!blob) return fallback;
-      if (typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function') {
-        try {
-          const url = URL.createObjectURL(blob);
-          inMemoryObjectUrls.set(`${topicId}:${blob.type}`, url);
-          return url;
-        } catch {
-          return fallback;
-        }
-      }
-      return fallback;
-    };
+    const infoKey = `mock:${topicId}:infographic`;
+    const assemKey = `mock:${topicId}:assembled`;
+    const audioKey = `mock:${topicId}:audio`;
+    const videoKey = `mock:${topicId}:video`;
 
-    const infographicUrl = createSafeUrl(bundle.media.infographicBlob, `blob:local/${topicId}/infographic.png`);
-    const assembledUrl = createSafeUrl(bundle.media.assembledBlob, `blob:local/${topicId}/assembled.png`);
+    const infographicUrl = mediaCache.getCachedObjectURL(infoKey, bundle.media.infographicBlob);
+    const assembledUrl = mediaCache.getCachedObjectURL(assemKey, bundle.media.assembledBlob);
+    const audioUrl = mediaCache.getCachedObjectURL(audioKey, bundle.media.audioBlob);
     const videoUrl = bundle.media.videoBlob
-      ? createSafeUrl(bundle.media.videoBlob, `blob:local/${topicId}/video.mp4`)
+      ? mediaCache.getCachedObjectURL(videoKey, bundle.media.videoBlob)
       : undefined;
-    const audioUrl = createSafeUrl(bundle.media.audioBlob, `blob:local/${topicId}/audio.wav`);
+
+    mediaCache.setMediaBlob(infoKey, bundle.media.infographicBlob).catch(() => {});
+    mediaCache.setMediaBlob(assemKey, bundle.media.assembledBlob).catch(() => {});
+    mediaCache.setMediaBlob(audioKey, bundle.media.audioBlob).catch(() => {});
+    if (bundle.media.videoBlob) {
+      mediaCache.setMediaBlob(videoKey, bundle.media.videoBlob).catch(() => {});
+    }
 
     const catalogItem: CommunityCatalogItem = {
       id: topicId,

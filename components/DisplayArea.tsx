@@ -24,10 +24,24 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status }) => {
     // Reset audio state when item changes
     if (audioRef.current) {
         audioRef.current.pause();
-        audioRef.current.currentTime = 0;
+        audioRef.current.removeAttribute('src');
+        audioRef.current.load();
     }
     setIsPlaying(false);
+    setSelectedComponent(null);
+    setModalImage(null);
+    setModalVideo(null);
   }, [item?.id]);
+
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.removeAttribute('src');
+        audioRef.current.load();
+      }
+    };
+  }, []);
 
   const toggleAudio = () => {
       if (!audioRef.current) return;
@@ -78,7 +92,8 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status }) => {
       if (hasVideo && videoUrl) {
            return (
              <div className="relative group w-full h-full">
-                <video 
+                 <video 
+                    key={videoUrl || item?.id}
                     src={videoUrl} 
                     controls 
                     autoPlay={false}
@@ -456,6 +471,7 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status }) => {
         <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in" onClick={() => setModalVideo(null)}>
             <div className="relative w-full max-w-5xl flex flex-col items-center justify-center">
                 <video 
+                    key={modalVideo}
                     src={modalVideo} 
                     controls
                     autoPlay
