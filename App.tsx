@@ -25,6 +25,8 @@ import {
 import { CANONICAL_MODEL_PRESETS } from './constants';
 import { initGA } from './services/analytics';
 import ApiKeyModal from './components/ApiKeyModal';
+import CommunityContributeModal from './components/CommunityContributeModal';
+import { bundleGenerationItem, uploadCommunityBundle } from './services/communityStorage';
 
 const STORAGE_PREFS_KEY = 'explodeit_model_preferences';
 const STORAGE_CONTRACT_KEY = 'explodeit_model_config_v1';
@@ -89,6 +91,15 @@ const App: React.FC = () => {
   // API Key Management (Strict Session Isolation: SessionStorage ONLY)
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Community Contribution Modal & Toast Feedback State
+  const [isContributeModalOpen, setIsContributeModalOpen] = useState(false);
+  const [contributeItem, setContributeItem] = useState<GenerationItem | null>(null);
+  const [contributionToast, setContributionToast] = useState<{
+    visible: boolean;
+    message: string;
+    type: 'success' | 'error' | 'info';
+  } | null>(null);
 
   useEffect(() => {
     initializeApiKey();
@@ -217,6 +228,44 @@ const App: React.FC = () => {
       setStatus(GenerationStatus.IDLE);
   };
 
+  const handleContribute = async (item: GenerationItem): Promise<{ success: boolean; topicId?: string; error?: string }> => {
+    try {
+      const bundle = await bundleGenerationItem(
+        item,
+        item.tier || modelPreferences.tier,
+        item.config || modelPreferences.config
+      );
+      const result = await uploadCommunityBundle(bundle);
+
+      if (result.success) {
+        setContributionToast({
+          visible: true,
+          message: `🎉 "${item.plan?.displayTitle || item.prompt}" contributed to the Community Encyclopedia!`,
+          type: 'success'
+        });
+        setTimeout(() => setContributionToast(null), 5000);
+        return { success: true, topicId: result.topicId };
+      } else {
+        setContributionToast({
+          visible: true,
+          message: `Contribution failed: ${result.error || 'Upload error'}`,
+          type: 'error'
+        });
+        setTimeout(() => setContributionToast(null), 5000);
+        return { success: false, error: result.error };
+      }
+    } catch (err: any) {
+      const errMsg = err.message || 'Upload error';
+      setContributionToast({
+        visible: true,
+        message: `Contribution failed: ${errMsg}`,
+        type: 'error'
+      });
+      setTimeout(() => setContributionToast(null), 5000);
+      return { success: false, error: errMsg };
+    }
+  };
+
   const updateItem = (id: string, changes: Partial<GenerationItem>) => {
     setHistory(prev => prev.map(item => 
       item.id === id ? { ...item, ...changes } : item
@@ -298,11 +347,16 @@ const App: React.FC = () => {
       
       const promises: Promise<any>[] = [];
 
+      let finalVideoUrl: string | null = null;
+      let finalAudioUrl: string | null = null;
+      let finalScript: string | null = null;
+
       // Video Task
       if (withVideo && assembledImg.url && infoImg.url) {
           promises.push(
               generateVideo(prompt, plan.domainType, plan.visualMetaphor, assembledImg.url, infoImg.url, currentConfig)
               .then(videoRes => {
+                  finalVideoUrl = videoRes.url;
                   usageLog.push(videoRes.usage);
                   updateItem(id, { videoUrl: videoRes.url, usage: usageLog });
               })
@@ -313,6 +367,8 @@ const App: React.FC = () => {
       promises.push(
           generateAudioNarration(prompt, plan.originStory, plan.detailedArticle, plan.trivia, plan.audioVibe?.voiceName, currentConfig)
           .then(audioRes => {
+              finalAudioUrl = audioRes.url;
+              finalScript = audioRes.script;
               usageLog.push(...audioRes.usage);
               updateItem(id, { audioUrl: audioRes.url, narrationScript: audioRes.script, usage: usageLog });
           })
@@ -321,6 +377,35 @@ const App: React.FC = () => {
       await Promise.all(promises);
 
       setStatus(GenerationStatus.COMPLETED);
+
+      // Snapshot completed generation item for contribution modal
+      const completedItem: GenerationItem = {
+        id,
+        prompt,
+        timestamp: Date.now(),
+        plan,
+        components: enrichedDetails.data,
+        narrationScript: finalScript,
+        infographicUrl: infoImg.url,
+        assembledUrl: assembledImg.url,
+        videoUrl: finalVideoUrl,
+        audioUrl: finalAudioUrl,
+        hasVideo: withVideo,
+        usage: [...usageLog],
+        tier: currentTier,
+        config: currentConfig,
+      };
+
+      // Check opt-out preference
+      const isOptedOut = typeof localStorage !== 'undefined' &&
+        localStorage.getItem('explodeit_contribute_optout') === 'true';
+
+      if (!isOptedOut) {
+        setTimeout(() => {
+          setContributeItem(completedItem);
+          setIsContributeModalOpen(true);
+        }, 800);
+      }
 
     } catch (err: any) {
       console.error(err);
@@ -394,6 +479,43 @@ const App: React.FC = () => {
         currentConfig={modelPreferences.config}
         onSavePreferences={handleSaveModelPreferences}
       />
+
+      <CommunityContributeModal
+        isOpen={isContributeModalOpen}
+        item={contributeItem}
+        onClose={() => setIsContributeModalOpen(false)}
+        onContribute={handleContribute}
+      />
+
+      {/* Community Contribution Toast */}
+      {contributionToast && contributionToast.visible && (
+        <div 
+          role="status"
+          aria-live="polite"
+          className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-xl shadow-2xl backdrop-blur-md text-xs font-semibold flex items-center gap-2.5 transition-all duration-300 animate-fade-in ${
+            contributionToast.type === 'success'
+              ? 'bg-emerald-950/90 border border-emerald-500/50 text-emerald-200'
+              : contributionToast.type === 'error'
+              ? 'bg-red-950/90 border border-red-500/50 text-red-200'
+              : 'bg-cyan-950/90 border border-cyan-500/50 text-cyan-200'
+          }`}
+        >
+          {contributionToast.type === 'success' && (
+            <svg className="w-4 h-4 text-emerald-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          )}
+          <span>{contributionToast.message}</span>
+          <button 
+            type="button" 
+            onClick={() => setContributionToast(null)} 
+            className="ml-2 text-slate-400 hover:text-white"
+            aria-label="Dismiss notification"
+          >
+            ×
+          </button>
+        </div>
+      )}
 
       <Sidebar 
         history={history} 

@@ -121,3 +121,66 @@ export interface GenerationItem {
   tier?: ModelTier;
   config?: StageModelConfig;
 }
+
+/**
+ * Sanitized Community Bundle (PROJECT.md § Interface Contracts)
+ * Strictly scrubbed and allowlist-projected generation item with genuine binary Blobs.
+ */
+export interface SanitizedGenerationBundle {
+  manifest: {
+    id: string;
+    topic: string;
+    timestamp: string; // ISO 8601 string
+    domain: string;
+    metaphor: string;
+    modelTier: ModelTier;
+    modelsUsed: Partial<StageModelConfig>;
+  };
+  plan: ObjectPlan;
+  components: ComponentPart[];
+  narrationScript: string;
+  media: {
+    infographicBlob: Blob;
+    assembledBlob: Blob;
+    videoBlob?: Blob;
+    audioBlob: Blob;
+  };
+}
+
+/**
+ * Public Community Catalog Item (PROJECT.md § Interface Contracts)
+ * Represents an indexed topic item in Cloudflare R2 / showcase.
+ */
+export interface CommunityCatalogItem {
+  id: string;
+  topic: string;
+  timestamp: string; // ISO 8601 string
+  domain: string;
+  metaphor: string;
+  infographicUrl: string;
+  assembledUrl: string;
+  videoUrl?: string;
+  audioUrl: string;
+  previewUrl: string;
+}
+
+/**
+ * Result of community contribution upload operation.
+ */
+export interface UploadResult {
+  success: boolean;
+  topicId: string;
+  catalogItem?: CommunityCatalogItem;
+  url?: string;
+  isMock?: boolean;
+  error?: string;
+}
+
+/**
+ * Master catalog manifest stored in R2 (catalog.json)
+ */
+export interface CatalogManifest {
+  version: string;
+  lastUpdated: string;
+  topics: CommunityCatalogItem[];
+}

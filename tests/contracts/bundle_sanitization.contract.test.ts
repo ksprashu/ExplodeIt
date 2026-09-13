@@ -7,159 +7,27 @@ import {
   DUMMY_AUDIO_DATA_URL,
   DUMMY_VIDEO_DATA_URL
 } from '../mocks/mockGenerations';
-import { GenerationItem, ObjectPlan, ComponentPart } from '../../types';
+import { GenerationItem, ObjectPlan, ComponentPart, SanitizedGenerationBundle, CommunityCatalogItem } from '../../types';
 import { ModelTier, StageModelConfig, CANONICAL_MODEL_PRESETS } from './pricing_engine.contract.test';
+import {
+  sanitizeGenerationItem,
+  dataUrlToBlob as prodDataUrlToBlob,
+  assertZeroLeak as prodAssertZeroLeak
+} from '../../services/communityStorage';
+
+export type { SanitizedGenerationBundle, CommunityCatalogItem };
 
 /**
- * Sanitized Bundle & Storage Contract Definitions (from PROJECT.md § Interface Contracts)
+ * Helper to convert Data URL to Blob (Delegates to production communityStorage)
  */
-export interface SanitizedGenerationBundle {
-  manifest: {
-    id: string;
-    topic: string;
-    timestamp: string;
-    domain: string;
-    metaphor: string;
-    modelTier: ModelTier;
-    modelsUsed: Partial<StageModelConfig>;
-  };
-  plan: ObjectPlan;
-  components: ComponentPart[];
-  narrationScript: string;
-  media: {
-    infographicBlob: Blob;
-    assembledBlob: Blob;
-    videoBlob?: Blob;
-    audioBlob: Blob;
-  };
-}
-
-export interface CommunityCatalogItem {
-  id: string;
-  topic: string;
-  timestamp: string;
-  domain: string;
-  metaphor: string;
-  infographicUrl: string;
-  assembledUrl: string;
-  videoUrl?: string;
-  audioUrl: string;
-  previewUrl: string;
-}
-
-/**
- * Helper to convert Data URL to Blob (Standard Contract Driver)
- */
-export function dataUrlToBlob(dataUrl: string, fallbackMime: string = 'application/octet-stream'): Blob {
-  if (!dataUrl || !dataUrl.startsWith('data:')) {
-    return new Blob([dataUrl || ''], { type: fallbackMime });
-  }
-  const [header, base64] = dataUrl.split(',');
-  const mimeMatch = header.match(/:(.*?);/);
-  const mime = mimeMatch ? mimeMatch[1] : fallbackMime;
-  const binaryStr = atob(base64 || '');
-  const bytes = new Uint8Array(binaryStr.length);
-  for (let i = 0; i < binaryStr.length; i++) {
-    bytes[i] = binaryStr.charCodeAt(i);
-  }
-  return new Blob([bytes], { type: mime });
-}
+export const dataUrlToBlob = prodDataUrlToBlob;
 
 /**
  * Contract Reference Implementation: Strict Allowlist Sanitizer & Bundle Packager
- * Authoritative specification for Milestone 3 implementation.
+ * Authoritative specification for Milestone 3 implementation (Delegates to production communityStorage).
  */
-export function contractSanitizeAndBundle(
-  item: any,
-  tier: ModelTier = 'pro',
-  config: StageModelConfig = CANONICAL_MODEL_PRESETS.pro
-): SanitizedGenerationBundle {
-  if (!item || !item.plan) {
-    throw new Error('Invalid generation item: missing plan');
-  }
+export const contractSanitizeAndBundle = sanitizeGenerationItem;
 
-  // 1. Strict Allowlist Serialization for Plan
-  const sanitizedPlan: ObjectPlan = {
-    displayTitle: String(item.plan.displayTitle || item.prompt || 'Untitled'),
-    category: String(item.plan.category || 'General'),
-    domainType: item.plan.domainType || 'PHYSICAL',
-    visualMetaphor: String(item.plan.visualMetaphor || 'Exploded View'),
-    sectionTitles: {
-      origin: String(item.plan.sectionTitles?.origin || 'Origin'),
-      anatomy: String(item.plan.sectionTitles?.anatomy || 'Anatomy'),
-      article: String(item.plan.sectionTitles?.article || 'Article'),
-      trivia: String(item.plan.sectionTitles?.trivia || 'Trivia')
-    },
-    originStory: String(item.plan.originStory || ''),
-    detailedArticle: String(item.plan.detailedArticle || ''),
-    trivia: Array.isArray(item.plan.trivia) ? item.plan.trivia.map(String) : [],
-    visualStylePrompt: String(item.plan.visualStylePrompt || ''),
-    componentList: Array.isArray(item.plan.componentList) ? item.plan.componentList.map(String) : [],
-    audioVibe: {
-      voiceName: String(item.plan.audioVibe?.voiceName || 'Zephyr'),
-      toneDescription: String(item.plan.audioVibe?.toneDescription || 'Educational')
-    }
-  };
-
-  // 2. Strict Allowlist Serialization for Components
-  const sanitizedComponents: ComponentPart[] = Array.isArray(item.components)
-    ? item.components.map((c: any) => ({
-        name: String(c.name || 'Component'),
-        shortDescription: String(c.shortDescription || ''),
-        detailedContent: c.detailedContent ? String(c.detailedContent) : undefined,
-        composition: String(c.composition || 'Modular material'),
-        sources: Array.isArray(c.sources) ? c.sources.map(String) : undefined
-      }))
-    : [];
-
-  // 3. Media Blob Conversion
-  const infographicBlob = item.infographicBlob instanceof Blob
-    ? item.infographicBlob
-    : dataUrlToBlob(item.infographicUrl || DUMMY_PNG_DATA_URL, 'image/png');
-
-  const assembledBlob = item.assembledBlob instanceof Blob
-    ? item.assembledBlob
-    : dataUrlToBlob(item.assembledUrl || DUMMY_PNG_DATA_URL, 'image/png');
-
-  const videoBlob = item.videoBlob instanceof Blob
-    ? item.videoBlob
-    : (item.videoUrl ? dataUrlToBlob(item.videoUrl, 'video/mp4') : undefined);
-
-  const audioBlob = item.audioBlob instanceof Blob
-    ? item.audioBlob
-    : dataUrlToBlob(item.audioUrl || DUMMY_AUDIO_DATA_URL, 'audio/wav');
-
-  // 4. Manifest Construction
-  const topicSlug = sanitizedPlan.displayTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-  const manifest = {
-    id: `${topicSlug}-${item.timestamp || Date.now()}`,
-    topic: sanitizedPlan.displayTitle,
-    timestamp: new Date(item.timestamp || Date.now()).toISOString(),
-    domain: sanitizedPlan.domainType,
-    metaphor: sanitizedPlan.visualMetaphor,
-    modelTier: tier,
-    modelsUsed: {
-      planning: config.planning,
-      infographic: config.infographic,
-      assembled: config.assembled,
-      video: config.enableVideo ? config.video : undefined,
-      narration: config.narration
-    }
-  };
-
-  return {
-    manifest,
-    plan: sanitizedPlan,
-    components: sanitizedComponents,
-    narrationScript: String(item.narrationScript || ''),
-    media: {
-      infographicBlob,
-      assembledBlob,
-      videoBlob,
-      audioBlob
-    }
-  };
-}
 
 /**
  * Zero-Leak Cryptographic & Regex Scanner
