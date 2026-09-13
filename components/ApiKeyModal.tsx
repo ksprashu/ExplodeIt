@@ -32,6 +32,17 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({
     setIsValid(key.trim().length > 10);
   }, [key]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onCancel();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onCancel]);
+
   if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {

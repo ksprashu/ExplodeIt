@@ -348,7 +348,7 @@ const App: React.FC = () => {
     if (pendingPrompt) {
       const nextPrompt = pendingPrompt;
       setPendingPrompt(null);
-      handleGenerate(nextPrompt.prompt, nextPrompt.withVideo);
+      handleGenerate(nextPrompt.prompt, nextPrompt.withVideo, [], trimmedKey);
     }
   };
 
@@ -371,6 +371,7 @@ const App: React.FC = () => {
 
     setApiKey(null);
     setGlobalApiKey("");
+    setPendingPrompt(null);
     setIsModalOpen(false); // Clean transition to keyless browsing without modal trapping
     setError(null);
   };
@@ -484,11 +485,28 @@ const App: React.FC = () => {
     ));
   };
 
-  const handleGenerate = async (prompt: string, withVideo: boolean, initialUsage: TokenUsage[] = []) => {
-    if (!apiKey) {
-      setPendingPrompt({ prompt, withVideo });
+  const isProcessing = status !== GenerationStatus.IDLE && status !== GenerationStatus.COMPLETED && status !== GenerationStatus.FAILED;
+
+  const handleGenerate = async (
+    prompt: string, 
+    withVideo: boolean, 
+    initialUsage: TokenUsage[] = [],
+    overrideKey?: string
+  ) => {
+    const cleanPrompt = prompt.trim();
+    if (!cleanPrompt) return;
+    if (isProcessing) return;
+
+    const effectiveKey = overrideKey || apiKey || (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('gemini_api_key') : null);
+    if (!effectiveKey) {
+      setPendingPrompt({ prompt: cleanPrompt, withVideo });
       setIsModalOpen(true);
       return;
+    }
+
+    setGlobalApiKey(effectiveKey);
+    if (!apiKey) {
+      setApiKey(effectiveKey);
     }
 
     const id = Date.now().toString();
@@ -500,7 +518,7 @@ const App: React.FC = () => {
 
     const newItem: GenerationItem = {
       id,
-      prompt,
+      prompt: cleanPrompt,
       timestamp: Date.now(),
       plan: null,
       components: [],
@@ -524,7 +542,7 @@ const App: React.FC = () => {
 
     try {
       // 1. Plan Object
-      const planRes = await planObject(prompt, currentConfig);
+      const planRes = await planObject(cleanPrompt, currentConfig);
       usageLog.push(planRes.usage);
       const plan = planRes.data;
       
@@ -539,19 +557,19 @@ const App: React.FC = () => {
 
       // 2. Generate Infographic
       setStatus(GenerationStatus.GENERATING_INFOGRAPHIC);
-      const infoImg = await generateInfographic(prompt, plan, currentConfig);
+      const infoImg = await generateInfographic(cleanPrompt, plan, currentConfig);
       usageLog.push(infoImg.usage);
       updateItem(id, { infographicUrl: infoImg.url, usage: usageLog });
 
       // 3. Generate Assembled Image
       setStatus(GenerationStatus.GENERATING_ASSEMBLY);
-      const assembledImg = await generateAssembledImage(prompt, plan.displayTitle, plan.originStory, plan.domainType, infoImg.url, currentConfig);
+      const assembledImg = await generateAssembledImage(cleanPrompt, plan.displayTitle, plan.originStory, plan.domainType, infoImg.url, currentConfig);
       usageLog.push(assembledImg.usage);
       updateItem(id, { assembledUrl: assembledImg.url, usage: usageLog });
 
       // 4. Enrich Component Details
       setStatus(GenerationStatus.ENRICHING);
-      const enrichedDetails = await enrichComponentDetails(prompt, plan.componentList, currentConfig);
+      const enrichedDetails = await enrichComponentDetails(cleanPrompt, plan.componentList, currentConfig);
       usageLog.push(...enrichedDetails.usage);
       updateItem(id, { components: enrichedDetails.data, usage: usageLog });
 
@@ -567,7 +585,7 @@ const App: React.FC = () => {
       // Video Task
       if (withVideo && assembledImg.url && infoImg.url) {
           promises.push(
-              generateVideo(prompt, plan.domainType, plan.visualMetaphor, assembledImg.url, infoImg.url, currentConfig)
+              generateVideo(cleanPrompt, plan.domainType, plan.visualMetaphor, assembledImg.url, infoImg.url, currentConfig)
               .then(videoRes => {
                   finalVideoUrl = videoRes.url;
                   usageLog.push(videoRes.usage);
@@ -578,7 +596,7 @@ const App: React.FC = () => {
 
       // Audio Task
       promises.push(
-          generateAudioNarration(prompt, plan.originStory, plan.detailedArticle, plan.trivia, plan.audioVibe?.voiceName, currentConfig)
+          generateAudioNarration(cleanPrompt, plan.originStory, plan.detailedArticle, plan.trivia, plan.audioVibe?.voiceName, currentConfig)
           .then(audioRes => {
               finalAudioUrl = audioRes.url;
               finalScript = audioRes.script;
@@ -594,7 +612,7 @@ const App: React.FC = () => {
       // Snapshot completed generation item for contribution modal
       const completedItem: GenerationItem = {
         id,
-        prompt,
+        prompt: cleanPrompt,
         timestamp: Date.now(),
         plan,
         components: enrichedDetails.data,
@@ -628,6 +646,7 @@ const App: React.FC = () => {
       // Auth Error Handling
       if (msg.includes("401") || msg.includes("API key") || msg.includes("403")) {
            setError("Invalid API Key. Please check your key and try again.");
+           setPendingPrompt({ prompt: cleanPrompt, withVideo });
            setIsModalOpen(true); // Re-open modal on auth failure
            setStatus(GenerationStatus.FAILED);
            return;
@@ -639,9 +658,14 @@ const App: React.FC = () => {
   };
 
   const handleSurprise = async (withVideo: boolean) => {
-      if (!apiKey) {
+      const effectiveKey = apiKey || (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('gemini_api_key') : null);
+      if (!effectiveKey) {
         setIsModalOpen(true);
         return;
+      }
+      setGlobalApiKey(effectiveKey);
+      if (!apiKey) {
+        setApiKey(effectiveKey);
       }
 
       setStatus(GenerationStatus.GENERATING_RANDOM);
@@ -650,7 +674,7 @@ const App: React.FC = () => {
 
       try {
           const { name, usage } = await getRandomObject();
-          await handleGenerate(name, withVideo, [usage]);
+          await handleGenerate(name, withVideo, [usage], effectiveKey);
       } catch (err: any) {
           console.error(err);
            // Auth Error Handling for Surprise Mode too
@@ -668,7 +692,6 @@ const App: React.FC = () => {
   };
 
   const currentItem = history.find(h => h.id === currentId) || null;
-  const isProcessing = status !== GenerationStatus.IDLE && status !== GenerationStatus.COMPLETED && status !== GenerationStatus.FAILED;
   // If we are viewing a completed item, status should effectively be COMPLETED for display purposes
   const isItemComplete = Boolean(currentItem?.plan && currentItem?.infographicUrl);
   const effectiveStatus = isProcessing
