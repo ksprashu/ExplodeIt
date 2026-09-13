@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import React, { useState } from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 
@@ -92,13 +92,30 @@ describe('Baseline Test Harness Verification', () => {
   });
 
   it('Tier 6: Web Storage & ObjectURL Polyfills function properly', () => {
+    // Verify window.scrollTo is a Vitest mock function
+    expect(window.scrollTo).toBeDefined();
+    expect(vi.isMockFunction(window.scrollTo)).toBe(true);
+    window.scrollTo(0, 100);
+    expect(window.scrollTo).toHaveBeenCalledWith(0, 100);
+
+    // Verify ObjectURL methods are Vitest mock functions
+    expect(vi.isMockFunction(window.URL.createObjectURL)).toBe(true);
+    expect(vi.isMockFunction(window.URL.revokeObjectURL)).toBe(true);
+    expect(vi.isMockFunction(URL.createObjectURL)).toBe(true);
+    expect(vi.isMockFunction(URL.revokeObjectURL)).toBe(true);
+
     const blob = new Blob(['sample data'], { type: 'text/plain' });
     const objectUrl = URL.createObjectURL(blob);
 
     expect(objectUrl).toBeDefined();
     expect(typeof objectUrl).toBe('string');
     expect(objectUrl).toMatch(/^blob:/);
-    expect(() => URL.revokeObjectURL(objectUrl)).not.toThrow();
+    expect(URL.createObjectURL).toHaveBeenCalledWith(blob);
+    expect(window.URL.createObjectURL).toHaveBeenCalledWith(blob);
+
+    URL.revokeObjectURL(objectUrl);
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith(objectUrl);
+    expect(window.URL.revokeObjectURL).toHaveBeenCalledWith(objectUrl);
 
     sessionStorage.setItem('test_key', 'session_value');
     expect(sessionStorage.getItem('test_key')).toBe('session_value');
@@ -117,5 +134,50 @@ describe('Baseline Test Harness Verification', () => {
     expect(GenerationStatus.IDLE).toBe('IDLE');
     expect(GenerationStatus.COMPLETED).toBe('COMPLETED');
     expect(GenerationStatus.FAILED).toBe('FAILED');
+  });
+
+  it('Tier 8: Browser Window & ObjectURL Polyfill Mocking & Spying Contract', () => {
+    // 1. Verify window.scrollTo is a Vitest mock function
+    expect(window.scrollTo).toBeDefined();
+    expect(vi.isMockFunction(window.scrollTo)).toBe(true);
+
+    // 2. Verify window.URL.createObjectURL and revokeObjectURL are Vitest mock functions
+    expect(vi.isMockFunction(window.URL.createObjectURL)).toBe(true);
+    expect(vi.isMockFunction(window.URL.revokeObjectURL)).toBe(true);
+
+    // 3. Verify window.scrollTo can be called and asserted via expect(...).toHaveBeenCalled()
+    window.scrollTo(0, 500);
+    expect(window.scrollTo).toHaveBeenCalledTimes(1);
+    expect(window.scrollTo).toHaveBeenCalledWith(0, 500);
+
+    window.scrollTo({ top: 100, left: 0, behavior: 'smooth' });
+    expect(window.scrollTo).toHaveBeenCalledTimes(2);
+    expect(window.scrollTo).toHaveBeenCalledWith({ top: 100, left: 0, behavior: 'smooth' });
+
+    // 4. Verify window.scrollTo can be spied upon via vi.spyOn
+    const scrollSpy = vi.spyOn(window, 'scrollTo');
+    window.scrollTo(250, 750);
+    expect(scrollSpy).toHaveBeenCalledWith(250, 750);
+
+    // 5. Verify URL.createObjectURL and URL.revokeObjectURL can be called and asserted
+    const testBlob = new Blob(['mock video binary stream'], { type: 'video/mp4' });
+    const generatedUrl = URL.createObjectURL(testBlob);
+    expect(URL.createObjectURL).toHaveBeenCalledWith(testBlob);
+    expect(window.URL.createObjectURL).toHaveBeenCalledWith(testBlob);
+    expect(generatedUrl).toMatch(/^blob:http:\/\/localhost:3000\//);
+
+    URL.revokeObjectURL(generatedUrl);
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith(generatedUrl);
+    expect(window.URL.revokeObjectURL).toHaveBeenCalledWith(generatedUrl);
+
+    // 6. Verify URL.createObjectURL and URL.revokeObjectURL can be spied upon via vi.spyOn
+    const createSpy = vi.spyOn(URL, 'createObjectURL');
+    const revokeSpy = vi.spyOn(URL, 'revokeObjectURL');
+    const audioBlob = new Blob(['mock audio narration stream'], { type: 'audio/mpeg' });
+    const audioUrl = URL.createObjectURL(audioBlob);
+    expect(createSpy).toHaveBeenCalledWith(audioBlob);
+
+    URL.revokeObjectURL(audioUrl);
+    expect(revokeSpy).toHaveBeenCalledWith(audioUrl);
   });
 });
