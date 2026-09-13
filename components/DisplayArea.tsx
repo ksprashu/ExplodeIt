@@ -1,19 +1,3 @@
-/**
- * Copyright 2025 Google LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { GenerationItem, ComponentPart, GenerationStatus } from '../types';
@@ -160,7 +144,7 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status }) => {
                     onClick={() => setModalImage(infographicUrl)}
                 />
                 <div className="absolute top-4 left-4 bg-black/70 backdrop-blur px-3 py-1 rounded-full text-xs font-mono text-purple-400 border border-purple-500/30 z-10 pointer-events-none">
-                     GEMINI 3 PRO INFOGRAPHIC
+                     GEMINI 3 PRO IMAGE
                 </div>
              </div>
           );
@@ -276,7 +260,7 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status }) => {
                 
                 <div className="bg-slate-900/50 px-4 py-2 rounded-lg border border-slate-800">
                     <span className="text-slate-400 text-sm">Curated by </span>
-                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-400 font-bold">Gemini 3 Pro</span>
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-400 font-bold">Gemini 3.1 Pro</span>
                 </div>
             </div>
         </div>
@@ -318,7 +302,7 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status }) => {
                 <span className="w-1 h-8 bg-gradient-to-b from-cyan-500 to-blue-500 rounded-full block"></span>
                 {plan.sectionTitles?.anatomy || "Object Anatomy"}
             </h3>
-            <span className="text-xs font-mono text-purple-400 border border-purple-500/30 px-2 py-1 rounded bg-purple-500/10">POWERED BY GEMINI 2.5 + SEARCH</span>
+            <span className="text-xs font-mono text-purple-400 border border-purple-500/30 px-2 py-1 rounded bg-purple-500/10">POWERED BY GEMINI 2.5 FLASH + SEARCH</span>
         </div>
        
         <p className="text-slate-400 text-sm">Click on any component to read the engineering deep dive.</p>
@@ -373,17 +357,18 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status }) => {
             </h3>
             <div className="bg-slate-900/40 p-8 rounded-2xl border border-slate-800/50">
                 {plan.detailedArticle ? (
-                  <ReactMarkdown 
-                    className="prose prose-invert max-w-none"
-                    components={{
-                      h2: ({node, ...props}) => <h3 className="text-xl md:text-2xl font-bold text-cyan-400 mt-8 mb-4 border-b border-cyan-500/20 pb-2" {...props} />,
-                      h3: ({node, ...props}) => <h4 className="text-lg font-bold text-white mt-6 mb-3" {...props} />,
-                      li: ({node, ...props}) => <li className="text-slate-300 leading-7 ml-4 mb-2 list-disc" {...props} />,
-                      p: ({node, ...props}) => <p className="text-slate-300 leading-7 mb-4 font-light text-lg" {...props} />,
-                    }}
-                  >
-                    {plan.detailedArticle}
-                  </ReactMarkdown>
+                  <div className="prose prose-invert max-w-none">
+                    <ReactMarkdown 
+                      components={{
+                        h2: ({node, ...props}) => <h3 className="text-xl md:text-2xl font-bold text-cyan-400 mt-8 mb-4 border-b border-cyan-500/20 pb-2" {...props} />,
+                        h3: ({node, ...props}) => <h4 className="text-lg font-bold text-white mt-6 mb-3" {...props} />,
+                        li: ({node, ...props}) => <li className="text-slate-300 leading-7 ml-4 mb-2 list-disc" {...props} />,
+                        p: ({node, ...props}) => <p className="text-slate-300 leading-7 mb-4 font-light text-lg" {...props} />,
+                      }}
+                    >
+                      {plan.detailedArticle}
+                    </ReactMarkdown>
+                  </div>
                 ) : (
                     <div className="space-y-4 animate-pulse">
                         <div className="h-4 bg-slate-800 rounded w-3/4"></div>
@@ -418,7 +403,7 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status }) => {
              <div className="bg-slate-950 p-6 rounded-2xl border border-slate-900 opacity-60">
                  <div className="text-[10px] text-slate-500 font-mono uppercase tracking-widest mb-4">System Analysis</div>
                  <div className="space-y-2 font-mono text-xs text-slate-600">
-                     <div className="flex justify-between"><span>MODEL</span> <span>GEMINI 3 PRO</span></div>
+                     <div className="flex justify-between"><span>MODEL</span> <span>GEMINI 3.1 PRO</span></div>
                      <div className="flex justify-between"><span>RENDER</span> <span>VEO 3.1</span></div>
                      <div className="flex justify-between"><span>STATUS</span> <span>OPTIMIZED</span></div>
                  </div>
@@ -538,7 +523,7 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status }) => {
                           ) : (
                              <div className="flex items-center gap-3 text-slate-500 italic">
                                  <div className="w-4 h-4 border-2 border-slate-600 border-t-cyan-500 rounded-full animate-spin"></div>
-                                 Fetching detailed analysis from Gemini 2.5...
+                                 Fetching detailed analysis from Gemini 2.5 Flash...
                              </div>
                           )}
                       </div>

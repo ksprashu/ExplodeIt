@@ -1,17 +1,7 @@
 /**
- * Copyright 2025 Google LLC
+ * ExplodeIt: The AI Encyclopedia
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Disclaimer: This is a personal project developed for educational and experimental purposes. It is not an official Google product and does not offer any official support or maintenance.
  */
 
 import React, { useState, useEffect } from 'react';
@@ -50,35 +40,96 @@ const App: React.FC = () => {
   }, []);
 
   const initializeApiKey = () => {
-    // 1. Check Local Storage
-    const storedKey = localStorage.getItem('gemini_api_key');
-    if (storedKey) {
-        setApiKey(storedKey);
-        setGlobalApiKey(storedKey);
-        return;
+    let resolvedKey: string | null = null;
+
+    // 1. Active Migration & Cleanup of Legacy Persistent Storage
+    try {
+      if (typeof localStorage !== 'undefined') {
+        const legacyKey = localStorage.getItem('gemini_api_key');
+        if (legacyKey) {
+          if (typeof sessionStorage !== 'undefined') {
+            sessionStorage.setItem('gemini_api_key', legacyKey);
+          }
+          resolvedKey = legacyKey;
+        }
+        // Guarantee legacy key is purged from disk in all execution paths
+        localStorage.removeItem('gemini_api_key');
+      }
+    } catch (e) {
+      console.warn("Unable to access or clean legacy localStorage:", e);
     }
 
-    // 2. Check Env Var (Legacy/Deployment)
+    // 2. Check Session Storage (for active tab session across refreshes)
+    if (!resolvedKey) {
+      try {
+        if (typeof sessionStorage !== 'undefined') {
+          resolvedKey = sessionStorage.getItem('gemini_api_key');
+        }
+      } catch (e) {
+        console.warn("Unable to access sessionStorage:", e);
+      }
+    }
+
+    // If key found from session storage or legacy migration
+    if (resolvedKey) {
+      setApiKey(resolvedKey);
+      setGlobalApiKey(resolvedKey);
+      return;
+    }
+
+    // 3. Check Env Var (Fallback/Hosted Deployment)
     if (process.env.API_KEY && process.env.API_KEY.length > 0) {
-        setApiKey(process.env.API_KEY);
-        setGlobalApiKey(process.env.API_KEY);
-        return;
+      setApiKey(process.env.API_KEY);
+      setGlobalApiKey(process.env.API_KEY);
+      return;
     }
 
-    // 3. No key found -> Open Splash
+    // 4. No key found -> Open Splash
     setIsModalOpen(true);
   };
 
   const handleSaveKey = (key: string) => {
-      localStorage.setItem('gemini_api_key', key);
-      setApiKey(key);
-      setGlobalApiKey(key);
-      setIsModalOpen(false);
-      setError(null);
+    const trimmedKey = key.trim();
+    try {
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.setItem('gemini_api_key', trimmedKey);
+      }
+    } catch (e) {
+      console.warn("Failed to save key to sessionStorage:", e);
+    }
+
+    try {
+      // Double safeguard: ensure localStorage never holds the key
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem('gemini_api_key');
+      }
+    } catch (e) {
+      console.warn("Failed to clear localStorage:", e);
+    }
+
+    setApiKey(trimmedKey);
+    setGlobalApiKey(trimmedKey);
+    setIsModalOpen(false);
+    setError(null);
   };
 
   const handleClearKey = () => {
-    localStorage.removeItem('gemini_api_key');
+    try {
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.removeItem('gemini_api_key');
+      }
+    } catch (e) {
+      console.warn("Failed to remove key from sessionStorage:", e);
+    }
+
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem('gemini_api_key');
+      }
+    } catch (e) {
+      console.warn("Failed to remove key from localStorage:", e);
+    }
+
     setApiKey(null);
     setGlobalApiKey("");
     setIsModalOpen(true); // Re-open as splash since we need a key

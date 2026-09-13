@@ -11,6 +11,8 @@
 
 </div>
 
+> **Disclaimer**: This is a personal project developed for educational and experimental purposes. It is not an official Google product and does not offer any official support or maintenance.
+
 **ExplodeIt** is an interactive educational experience that lets you "explode" any physical object to understand how it works. By combining the reasoning of **Gemini 3 Pro**, the vision of **Gemini 3 Pro Image**, and the motion of **Veo**, it creates a comprehensive multimedia guide on the fly.
 
 ## ✨ Features
@@ -94,7 +96,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## Disclaimer
 
-This is not an officially supported Google product.
+> **Disclaimer**: This is a personal project developed for educational and experimental purposes. It is not an official Google product and does not offer any official support or maintenance.
 
 ## License
 

@@ -1,21 +1,5 @@
-/**
- * Copyright 2025 Google LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-import { GoogleGenAI, Type, Modality } from "@google/genai";
-import { ObjectPlan, ComponentPart, TokenUsage } from "../types";
+import { GoogleGenAI, Modality } from "@google/genai";
+import { ObjectPlan, ComponentPart, TokenUsage, GenerationItem } from "../types";
 import { 
   MODEL_PLANNING, 
   MODEL_AUTHORING,
@@ -60,23 +44,23 @@ const callWithRetry = async <T>(fn: () => Promise<T>, retries = 3, delay = 1000,
 const calculateCost = (model: string, input: number, output: number, isMedia: boolean = false): number => {
     let cost = 0;
     if (model === MODEL_PLANNING) {
-        cost += (input / 1000) * PRICING[MODEL_PLANNING].inputPer1kTokens;
-        cost += (output / 1000) * PRICING[MODEL_PLANNING].outputPer1kTokens;
+        cost += (input / 1000) * (PRICING[MODEL_PLANNING]?.inputPer1kTokens ?? 0);
+        cost += (output / 1000) * (PRICING[MODEL_PLANNING]?.outputPer1kTokens ?? 0);
     } else if (model === MODEL_AUTHORING) {
-        cost += (input / 1000) * PRICING[MODEL_AUTHORING].inputPer1kTokens;
-        cost += (output / 1000) * PRICING[MODEL_AUTHORING].outputPer1kTokens;
+        cost += (input / 1000) * (PRICING[MODEL_AUTHORING]?.inputPer1kTokens ?? 0);
+        cost += (output / 1000) * (PRICING[MODEL_AUTHORING]?.outputPer1kTokens ?? 0);
     } else if (model === MODEL_SCRIPT) {
-        cost += (input / 1000) * PRICING[MODEL_SCRIPT].inputPer1kTokens;
-        cost += (output / 1000) * PRICING[MODEL_SCRIPT].outputPer1kTokens;
+        cost += (input / 1000) * (PRICING[MODEL_SCRIPT]?.inputPer1kTokens ?? 0);
+        cost += (output / 1000) * (PRICING[MODEL_SCRIPT]?.outputPer1kTokens ?? 0);
     } else if (model === MODEL_SURPRISE) {
-        cost += (input / 1000) * PRICING[MODEL_SURPRISE].inputPer1kTokens;
-        cost += (output / 1000) * PRICING[MODEL_SURPRISE].outputPer1kTokens;
+        cost += (input / 1000) * (PRICING[MODEL_SURPRISE]?.inputPer1kTokens ?? 0);
+        cost += (output / 1000) * (PRICING[MODEL_SURPRISE]?.outputPer1kTokens ?? 0);
     } else if (model === MODEL_IMAGE) {
-        cost = PRICING[MODEL_IMAGE].perImage;
+        cost = PRICING[MODEL_IMAGE]?.perImage ?? 0;
     } else if (model === MODEL_VIDEO) {
-        cost = PRICING[MODEL_VIDEO].perVideo;
+        cost = PRICING[MODEL_VIDEO]?.perVideo ?? 0;
     } else if (model === MODEL_TTS) {
-        cost = (input / 1000) * PRICING[MODEL_TTS].per1kChars;
+        cost = (input / 1000) * (PRICING[MODEL_TTS]?.per1kChars ?? 0);
     }
     return parseFloat(cost.toFixed(5));
 };

@@ -1,19 +1,3 @@
-/**
- * Copyright 2025 Google LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 import React, { useState, useEffect } from 'react';
 
 interface ApiKeyModalProps {
@@ -87,6 +71,28 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, onSave, onCancel, onC
             </div>
           )}
 
+          {/* Session Privacy Assurance */}
+          <div className="p-3.5 bg-slate-950/80 border border-slate-800 rounded-xl flex items-start gap-3">
+            <svg className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+            <div className="text-xs text-slate-400 leading-relaxed space-y-1">
+              <div className="font-semibold text-slate-200 flex items-center justify-between">
+                <span>Session-Only Storage Guarantee</span>
+                <span className="text-[10px] px-1.5 py-0.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded font-mono">100% Client-Side</span>
+              </div>
+              <p>
+                Your API key is stored <span className="text-slate-200 font-medium">ONLY in browser temporary session memory (<code className="text-cyan-400 font-mono text-[11px]">sessionStorage</code>)</span> for this active tab.
+              </p>
+              <p>
+                It is <span className="text-slate-200 font-medium">NEVER written to persistent local storage</span> and is permanently erased when the tab or browser window is closed.
+              </p>
+              <p className="text-slate-500 text-[11px]">
+                ExplodeIt operates 100% client-side without any backend servers or proxy storage.
+              </p>
+            </div>
+          </div>
+
           <div className="space-y-2">
             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
               Gemini API Key
@@ -99,17 +105,20 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, onSave, onCancel, onC
               className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-3 text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all font-mono text-sm"
               autoFocus
             />
-            <p className="text-xs text-slate-500 flex justify-between">
-              <span>Your key is stored locally in your browser.</span>
+            <div className="text-xs text-slate-500 flex flex-col sm:flex-row sm:justify-between gap-1 pt-1">
+              <span className="flex items-center gap-1.5 text-slate-400">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                Active tab session only &bull; Zero disk storage
+              </span>
               <a 
                 href="https://aistudio.google.com/app/apikey" 
                 target="_blank" 
                 rel="noreferrer"
                 className="text-cyan-400 hover:text-cyan-300 underline"
               >
-                Get a key here &rarr;
+                Get a Gemini key &rarr;
               </a>
-            </p>
+            </div>
           </div>
 
           {/* Actions */}
@@ -142,7 +151,7 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, onSave, onCancel, onC
                   : 'bg-slate-800 text-slate-500 cursor-not-allowed'
               }`}
             >
-              {isSplash ? "Start Exploring" : "Save Key"}
+              {isSplash ? "Start Exploring" : "Save for Session"}
             </button>
           </div>
         </form>

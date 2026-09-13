@@ -1,5 +1,7 @@
 # ExplodeIt: The AI Encyclopedia
 
+> **Disclaimer**: This is a personal project developed for educational and experimental purposes. It is not an official Google product and does not offer any official support or maintenance.
+
 ## Project Overview
 **ExplodeIt** is an interactive educational web application that generates "exploded views" of physical objects. It leverages Google's latest generative AI models to create a rich, multimedia learning experience. Users can enter the name of any object (e.g., "Vintage Camera", "Human Heart") and the app orchestrates a multi-step generation pipeline to produce:
 

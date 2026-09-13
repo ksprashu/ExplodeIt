@@ -1,52 +1,63 @@
-/**
- * Copyright 2025 Google LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 import { Type } from "@google/genai";
 
-export const MODEL_PLANNING = 'gemini-3-pro-preview';
-export const MODEL_AUTHORING = 'gemini-2.5-flash'; // Mapping "2.5 Pro" request to 2.5 Flash for speed/validity
-export const MODEL_SCRIPT = 'gemini-flash-lite-latest';
-export const MODEL_IMAGE = 'gemini-3-pro-image-preview';
-export const MODEL_VIDEO = 'veo-3.1-generate-preview';
-export const MODEL_TTS = 'gemini-2.5-flash-preview-tts';
-export const MODEL_SURPRISE = 'gemini-2.5-flash';
+// Active Production Google GenAI Models (Sept 2026)
+export const MODEL_PLANNING = 'gemini-3.1-pro-preview';       // Upgraded from deprecated gemini-3-pro-preview
+export const MODEL_AUTHORING = 'gemini-2.5-flash';          // Active Stable
+export const MODEL_SCRIPT = 'gemini-2.5-flash-lite';        // Upgraded from floating gemini-flash-lite-latest
+export const MODEL_IMAGE = 'gemini-3-pro-image';            // Corrected from invalid gemini-3-pro-image-preview
+export const MODEL_VIDEO = 'veo-3.1-generate-preview';      // Active Preview
+export const MODEL_TTS = 'gemini-2.5-flash-preview-tts';    // Active Preview
+export const MODEL_SURPRISE = 'gemini-2.5-flash';           // Active Stable
 
-// Estimated Pricing (USD)
-export const PRICING = {
+// Budget Saver Alternates
+export const MODEL_PLANNING_BUDGET = 'gemini-2.5-flash';
+export const MODEL_IMAGE_BUDGET = 'gemini-3.1-flash-image';
+export const MODEL_VIDEO_BUDGET = 'veo-3.1-lite-generate-preview';
+
+export interface PricingRate {
+  inputPer1kTokens?: number;
+  outputPer1kTokens?: number;
+  perImage?: number;
+  perVideo?: number;
+  per1kChars?: number;
+}
+
+// Calibrated Pricing Schedule (USD per 1k units / per item) - September 2026 official rates
+export const PRICING: Record<string, PricingRate> = {
   [MODEL_PLANNING]: {
-    inputPer1kTokens: 0.00125,
-    outputPer1kTokens: 0.005,
+    inputPer1kTokens: 0.002,     // $2.00 / 1M
+    outputPer1kTokens: 0.012,    // $12.00 / 1M
   },
   [MODEL_AUTHORING]: {
-    inputPer1kTokens: 0.0001,
-    outputPer1kTokens: 0.0004,
+    inputPer1kTokens: 0.0003,    // $0.30 / 1M
+    outputPer1kTokens: 0.0025,   // $2.50 / 1M
   },
   [MODEL_SCRIPT]: {
-    inputPer1kTokens: 0.000075,
-    outputPer1kTokens: 0.0003,
+    inputPer1kTokens: 0.0001,    // $0.10 / 1M
+    outputPer1kTokens: 0.0004,   // $0.40 / 1M
   },
   [MODEL_IMAGE]: {
-    perImage: 0.04,
+    perImage: 0.134,             // $120 / 1M tokens (1120 tokens per 2K image)
   },
   [MODEL_VIDEO]: {
-    perVideo: 0.10,
+    perVideo: 2.00,              // Standard Veo 3.1 ($0.40/sec * 5 sec)
   },
   [MODEL_TTS]: {
-    per1kChars: 0.002 // Approx estimate
+    per1kChars: 0.002,           // Approx 25 audio tokens/sec
+  },
+  // Budget models
+  [MODEL_IMAGE_BUDGET]: {
+    perImage: 0.067,             // $60 / 1M tokens (1120 tokens per 1K image)
+  },
+  [MODEL_VIDEO_BUDGET]: {
+    perVideo: 0.25,              // Lite Veo 3.1 ($0.05/sec * 5 sec)
   }
+};
+
+// Crucial: Ensure [MODEL_SURPRISE] is explicitly defined in PRICING to eliminate latent TypeError
+PRICING[MODEL_SURPRISE] = {
+  inputPer1kTokens: 0.0003,    // $0.30 / 1M
+  outputPer1kTokens: 0.0025,   // $2.50 / 1M
 };
 
 export const DEFAULT_PLACEHOLDER = "https://picsum.photos/800/600";

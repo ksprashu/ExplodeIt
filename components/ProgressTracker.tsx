@@ -1,19 +1,3 @@
-/**
- * Copyright 2025 Google LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 import React from 'react';
 import { GenerationStatus } from '../types';
 
@@ -34,10 +18,10 @@ const STATUS_MAP = {
 };
 
 const steps = [
-  { id: GenerationStatus.PLANNING, label: "Planning", sub: "Gemini 3 Pro" },
+  { id: GenerationStatus.PLANNING, label: "Planning", sub: "Gemini 3.1 Pro" },
   { id: GenerationStatus.GENERATING_INFOGRAPHIC, label: "Blueprinting", sub: "Gemini 3 Pro Image" },
   { id: GenerationStatus.GENERATING_ASSEMBLY, label: "Manufacturing", sub: "Gemini 3 Pro Image" },
-  { id: GenerationStatus.ENRICHING, label: "Authoring", sub: "Gemini 2.5 & Search" },
+  { id: GenerationStatus.ENRICHING, label: "Authoring", sub: "Gemini 2.5 Flash & Search" },
   { id: GenerationStatus.ANIMATING, label: "Animating & Narrating", sub: "Veo 3.1 & Gemini TTS" },
 ];
 

@@ -1,19 +1,3 @@
-/**
- * Copyright 2025 Google LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 import React, { useMemo } from 'react';
 import { GenerationItem } from '../types';
 
@@ -109,6 +93,17 @@ const Sidebar: React.FC<SidebarProps> = ({ history, currentId, onSelect, onClear
             </div>
         </div>
 
+        {/* Subtle Visual Session-Active Indicator */}
+        <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-800 text-[11px] font-mono">
+          <span className="flex items-center gap-2 text-slate-400">
+            <span className={`w-2 h-2 rounded-full ${hasKey ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`}></span>
+            SESSION STORAGE
+          </span>
+          <span className={`text-[10px] uppercase font-bold tracking-wider ${hasKey ? 'text-emerald-400' : 'text-amber-400'}`}>
+            {hasKey ? 'Active (Tab Only)' : 'Not Configured'}
+          </span>
+        </div>
+
         {history.length > 0 && (
             <button 
                 onClick={onClear}
@@ -123,6 +118,7 @@ const Sidebar: React.FC<SidebarProps> = ({ history, currentId, onSelect, onClear
         
         <button 
           onClick={onChangeKey}
+          title={hasKey ? "Update session API key (stored in sessionStorage for this tab only)" : "Configure API key for this active browser session"}
           className={`w-full py-2.5 rounded-lg transition-all flex items-center justify-center gap-2 font-medium border ${
             hasKey 
               ? 'bg-slate-800 hover:bg-slate-700 border-slate-700 hover:border-slate-600 text-slate-400 hover:text-white' 
@@ -134,14 +130,14 @@ const Sidebar: React.FC<SidebarProps> = ({ history, currentId, onSelect, onClear
               <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
               </svg>
-              Update API Key
+              Update Session Key
             </>
           ) : (
             <>
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
               </svg>
-              Key Not Configured
+              Configure Session Key
             </>
           )}
         </button>
