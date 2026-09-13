@@ -208,16 +208,30 @@ export function createManifest(
  * Cryptographic & Regex Zero-Leak Scanner
  * Guarantees zero Google GenAI API keys, Bearer tokens, or prohibited property names escape to bundle.
  */
-export function assertZeroLeak(bundle: SanitizedGenerationBundle): void {
-  const textPayload = JSON.stringify({
-    manifest: bundle.manifest,
-    plan: bundle.plan,
-    components: bundle.components,
-    narrationScript: bundle.narrationScript,
-  });
+export function assertZeroLeak(bundle: SanitizedGenerationBundle | any): void {
+  // Clone and safely strip binary Blobs before stringification
+  const payloadToScan: any = typeof bundle === 'object' && bundle !== null ? { ...bundle } : bundle;
+  if (payloadToScan && typeof payloadToScan === 'object') {
+    for (const key of Object.keys(payloadToScan)) {
+      if (typeof Blob !== 'undefined' && payloadToScan[key] instanceof Blob) {
+        delete payloadToScan[key];
+      }
+    }
+    if (payloadToScan.media && typeof payloadToScan.media === 'object') {
+      const mediaCopy: any = { ...payloadToScan.media };
+      for (const key of Object.keys(mediaCopy)) {
+        if (typeof Blob !== 'undefined' && mediaCopy[key] instanceof Blob) {
+          delete mediaCopy[key];
+        }
+      }
+      payloadToScan.media = mediaCopy;
+    }
+  }
 
-  // 1. Google GenAI API key format: AIzaSy... (33 chars)
-  const geminiKeyRegex = /AIzaSy[A-Za-z0-9_-]{33}/g;
+  const textPayload = JSON.stringify(payloadToScan);
+
+  // 1. Google GenAI API key format: AIzaSy... (catch 20+ chars)
+  const geminiKeyRegex = /AIzaSy[A-Za-z0-9_-]{20,}/g;
   const keyMatches = textPayload.match(geminiKeyRegex);
   if (keyMatches) {
     throw new Error(`Zero-leak violation: Found Google GenAI API key in bundle: ${keyMatches.join(', ')}`);

@@ -737,5 +737,26 @@ describe('Challenger 2 - Empirical Stress Harness: Milestone 3 (FEAT-06, FEAT-07
       await expect(uploadCommunityBundle(bundleWithSecret)).rejects.toThrow('Zero-leak violation');
       expect(fetchSpy).not.toHaveBeenCalled();
     });
+
+    it('S2.5 - assertZeroLeak throws Zero-leak violation error if un-sanitized item containing root-level secrets is passed directly to it', () => {
+      const unSanitizedWithRootKey = {
+        ...mockCameraGenerationItem,
+        apiKey: 'AIzaSy' + 'A'.repeat(33),
+        gemini_api_key: 'AIzaSy' + 'B'.repeat(33),
+        userSession: { token: 'secret' },
+        secretToken: 'secret_value',
+      };
+
+      // 1. Assert un-sanitized item with root-level keys throws Zero-leak violation
+      expect(() => assertZeroLeak(unSanitizedWithRootKey as any)).toThrow(/Zero-leak violation/);
+      expect(() => assertZeroLeak(unSanitizedWithRootKey as any)).toThrow(/Found Google GenAI API key/);
+
+      // 2. Assert fixture mockSensitiveInjectedItem with root keys throws
+      expect(() => assertZeroLeak(mockSensitiveInjectedItem as any)).toThrow(/Zero-leak violation/);
+
+      // 3. Contrast: Allowlist sanitization cleanses secrets, bundle passes cleanly
+      const sanitizedBundle = sanitizeGenerationItem(unSanitizedWithRootKey, 'pro', CANONICAL_MODEL_PRESETS.pro);
+      expect(() => assertZeroLeak(sanitizedBundle)).not.toThrow();
+    });
   });
 });

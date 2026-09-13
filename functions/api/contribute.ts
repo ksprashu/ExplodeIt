@@ -120,21 +120,92 @@ function jsonResponse(data: unknown, status = 200, extraHeaders: Record<string, 
   });
 }
 
-function assertZeroLeakServer(payloadText: string): void {
-  // 1. Google GenAI API key format: AIzaSy...
-  if (/AIzaSy[A-Za-z0-9_-]{33}/.test(payloadText)) {
-    throw new Error('Payload contains disallowed Gemini API Key pattern');
-  }
-  // 2. Bearer tokens: ya29...
-  if (/ya29\.[A-Za-z0-9_-]+/.test(payloadText)) {
-    throw new Error('Payload contains disallowed Bearer token pattern');
-  }
-  // 3. Prohibited object property names
-  const forbidden = ['"apiKey":', '"gemini_api_key":', '"api_key":', '"secretToken":', '"auth_token":', '"userSession":'];
-  for (const prop of forbidden) {
-    if (payloadText.includes(prop)) {
-      throw new Error(`Payload contains forbidden property: ${prop}`);
+/**
+ * Server-Side Zero-Leak Cryptographic & Regex Scanner
+ * Guarantees that neither Google GenAI API keys, Bearer tokens, nor prohibited property names
+ * leak through multipart form fields, filenames, or JSON metadata payloads.
+ *
+ * Supports:
+ * - string: scans JSON or raw text payloads
+ * - FormData: scans all multipart fields, keys, string values, and file names
+ * - Record<string, unknown>: scans JSON serialized object structures
+ */
+export function assertZeroLeakServer(payload: string | FormData | Record<string, unknown>): void {
+  if (!payload) return;
+
+  const scanText = (text: string): void => {
+    // 1. Google GenAI API key format: AIzaSy... (20+ chars)
+    if (/AIzaSy[A-Za-z0-9_-]{20,}/.test(text)) {
+      throw new Error('Payload contains disallowed Gemini API Key pattern');
     }
+    // 2. Bearer tokens: ya29...
+    if (/ya29\.[A-Za-z0-9_-]+/.test(text)) {
+      throw new Error('Payload contains disallowed Bearer token pattern');
+    }
+    // 3. Prohibited object property names
+    const forbidden = [
+      '"apiKey":',
+      '"gemini_api_key":',
+      '"api_key":',
+      '"secretToken":',
+      '"auth_token":',
+      '"userSession":',
+    ];
+    for (const prop of forbidden) {
+      if (text.includes(prop)) {
+        throw new Error(`Payload contains forbidden property: ${prop}`);
+      }
+    }
+  };
+
+  // Case 1: FormData (multipart form fields, keys, values, and filenames)
+  if (typeof FormData !== 'undefined' && payload instanceof FormData) {
+    const forbiddenKeys = [
+      'apiKey',
+      'gemini_api_key',
+      'api_key',
+      'secretToken',
+      'auth_token',
+      'userSession',
+    ];
+    for (const [key, value] of payload.entries()) {
+      // Check field key name for forbidden properties or leaked keys
+      if (forbiddenKeys.includes(key) || forbiddenKeys.some((fk) => key.includes(`"${fk}":`))) {
+        throw new Error(`Payload contains forbidden property: "${key}":`);
+      }
+      if (/AIzaSy[A-Za-z0-9_-]{20,}/.test(key)) {
+        throw new Error('Payload contains disallowed Gemini API Key pattern');
+      }
+      if (/ya29\.[A-Za-z0-9_-]+/.test(key)) {
+        throw new Error('Payload contains disallowed Bearer token pattern');
+      }
+
+      // Check field value
+      if (typeof value === 'string') {
+        scanText(value);
+      } else if (value && typeof (value as File).name === 'string') {
+        const fileName = (value as File).name;
+        if (/AIzaSy[A-Za-z0-9_-]{20,}/.test(fileName)) {
+          throw new Error('Payload contains disallowed Gemini API Key pattern');
+        }
+        if (/ya29\.[A-Za-z0-9_-]+/.test(fileName)) {
+          throw new Error('Payload contains disallowed Bearer token pattern');
+        }
+      }
+    }
+    return;
+  }
+
+  // Case 2: String (JSON string or raw text)
+  if (typeof payload === 'string') {
+    scanText(payload);
+    return;
+  }
+
+  // Case 3: Object / JSON payload
+  if (typeof payload === 'object') {
+    scanText(JSON.stringify(payload));
+    return;
   }
 }
 
@@ -269,9 +340,10 @@ export async function onRequestPost(context: EventContext<Env>): Promise<Respons
     return jsonResponse({ success: false, error: 'Missing required manifest JSON in form data' }, 400);
   }
 
-  // 2. Server-side Zero-Leak Sanitization Gate
+  // 2. Server-side Zero-Leak Sanitization Gate (Scans manifest JSON and all multipart fields)
   try {
     assertZeroLeakServer(manifestRaw);
+    assertZeroLeakServer(formData);
   } catch (leakError: any) {
     return jsonResponse({ success: false, error: `Sanitization rejected: ${leakError?.message}` }, 400);
   }
@@ -283,6 +355,13 @@ export async function onRequestPost(context: EventContext<Env>): Promise<Respons
     return jsonResponse({ success: false, error: 'Malformed JSON in manifest field' }, 400);
   }
 
+  // 3. Scan deserialized object payload for escaped/nested secrets
+  try {
+    assertZeroLeakServer(parsedBundle);
+  } catch (leakError: any) {
+    return jsonResponse({ success: false, error: `Sanitization rejected: ${leakError?.message}` }, 400);
+  }
+
   // Support both full bundle structure and raw manifest structure
   const manifestMeta = parsedBundle.manifest || parsedBundle;
   const plan = parsedBundle.plan || {};
@@ -291,7 +370,7 @@ export async function onRequestPost(context: EventContext<Env>): Promise<Respons
   const rawId = manifestMeta.id || `${topicTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now()}`;
   const topicId = rawId.replace(/[^a-zA-Z0-9_-]/g, '-');
 
-  // 3. Extract Media Files from FormData
+  // 4. Extract Media Files from FormData
   const infographicFile = formData.get('infographic') as File | null;
   const assembledFile = formData.get('assembled') as File | null;
   const videoFile = formData.get('video') as File | null;
@@ -304,7 +383,7 @@ export async function onRequestPost(context: EventContext<Env>): Promise<Respons
   const basePath = `topics/${topicId}`;
 
   try {
-    // 4. Store Bundle Metadata Manifest in R2
+    // 5. Store Bundle Metadata Manifest in R2
     await env.COMMUNITY_BUCKET.put(
       `${basePath}/manifest.json`,
       JSON.stringify(parsedBundle, null, 2),
@@ -316,7 +395,7 @@ export async function onRequestPost(context: EventContext<Env>): Promise<Respons
       }
     );
 
-    // 5. Store Media Files in R2
+    // 6. Store Media Files in R2
     const uploadTasks: Promise<any>[] = [
       env.COMMUNITY_BUCKET.put(`${basePath}/infographic.png`, infographicFile.stream(), {
         httpMetadata: { contentType: 'image/png', cacheControl: IMMUTABLE_MEDIA_CACHE },
@@ -344,7 +423,7 @@ export async function onRequestPost(context: EventContext<Env>): Promise<Respons
 
     await Promise.all(uploadTasks);
 
-    // 6. Build CommunityCatalogItem
+    // 7. Build CommunityCatalogItem
     const infographicUrl = resolveAssetUrl(env, requestUrl, `${basePath}/infographic.png`);
     const assembledUrl = resolveAssetUrl(env, requestUrl, `${basePath}/assembled.png`);
     const videoUrl = videoFile ? resolveAssetUrl(env, requestUrl, `${basePath}/video.mp4`) : undefined;
@@ -363,7 +442,7 @@ export async function onRequestPost(context: EventContext<Env>): Promise<Respons
       previewUrl: infographicUrl,
     };
 
-    // 7. Atomic Catalog Update in R2
+    // 8. Atomic Catalog Update in R2
     let catalog: CatalogManifest = {
       version: '1.0.0',
       lastUpdated: new Date().toISOString(),
