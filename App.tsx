@@ -9,8 +9,22 @@ import Sidebar from './components/Sidebar';
 import InputArea from './components/InputArea';
 import ProgressTracker from './components/ProgressTracker';
 import DisplayArea from './components/DisplayArea';
+import Header from './components/Header';
+import CommunityShowcase from './components/CommunityShowcase';
 import ModelSettingsModal from './components/ModelSettingsModal';
-import { GenerationItem, GenerationStatus, TokenUsage, ModelTier, StageModelConfig } from './types';
+import ApiKeyModal from './components/ApiKeyModal';
+import CommunityContributeModal from './components/CommunityContributeModal';
+import { 
+  GenerationItem, 
+  GenerationStatus, 
+  TokenUsage, 
+  ModelTier, 
+  StageModelConfig,
+  CommunityCatalogItem,
+  ObjectPlan,
+  ComponentPart,
+  SanitizedGenerationBundle,
+} from './types';
 import { 
   planObject, 
   generateInfographic, 
@@ -24,9 +38,14 @@ import {
 } from './services/geminiService';
 import { CANONICAL_MODEL_PRESETS } from './constants';
 import { initGA } from './services/analytics';
-import ApiKeyModal from './components/ApiKeyModal';
-import CommunityContributeModal from './components/CommunityContributeModal';
-import { bundleGenerationItem, uploadCommunityBundle } from './services/communityStorage';
+import { 
+  bundleGenerationItem, 
+  uploadCommunityBundle,
+  fetchCommunityCatalog,
+  fetchCommunityTopic,
+  preloadCommunityTopicMedia,
+} from './services/communityStorage';
+import { SEED_COMMUNITY_CATALOG } from './services/mockCommunityStorage';
 import { revokeAllObjectURLs } from './services/mediaCache';
 
 const STORAGE_PREFS_KEY = 'explodeit_model_preferences';
@@ -79,6 +98,120 @@ export function saveModelPreferences(tier: ModelTier, config: StageModelConfig):
   }
 }
 
+/**
+ * Adapt a CommunityCatalogItem and its preloaded media into a complete GenerationItem.
+ * Uses bundle data when available; otherwise synthesizes rich blueprint & anatomy.
+ */
+export function adaptCatalogItemToGenerationItem(
+  topic: CommunityCatalogItem,
+  preloadedMedia: {
+    infographicUrl: string;
+    assembledUrl: string;
+    videoUrl?: string;
+    audioUrl: string;
+  },
+  bundle?: SanitizedGenerationBundle | null
+): GenerationItem {
+  const domain = topic.domain || 'PHYSICAL';
+  const categoryMap: Record<string, string> = {
+    PHYSICAL: 'Mechanical & Physical Systems',
+    SOFTWARE: 'Computer Science & Algorithms',
+    BIOLOGICAL: 'Biological & Anatomical Systems',
+    CONCEPTUAL: 'Theoretical Physics & Mathematics',
+    OTHER: 'General Science & Technology',
+  };
+
+  const plan: ObjectPlan = bundle?.plan || {
+    displayTitle: topic.topic,
+    category: categoryMap[domain] || 'General Science',
+    domainType: (['PHYSICAL', 'SOFTWARE', 'CONCEPTUAL', 'BIOLOGICAL', 'OTHER'].includes(domain)
+      ? domain
+      : 'PHYSICAL') as ObjectPlan['domainType'],
+    visualMetaphor: topic.metaphor || 'Exploded View',
+    sectionTitles: {
+      origin: 'Origin & Historical Context',
+      anatomy: 'Anatomical Architecture & Deconstruction',
+      article: 'Technical Principles & Engineering Analysis',
+      trivia: 'Engineering Trivia & Curiosities',
+    },
+    originStory: `The deconstruction of ${topic.topic} illustrates the mechanical, architectural, and systemic principles underlying its real-world function.`,
+    detailedArticle: `## Architecture of ${topic.topic}\n\n${topic.metaphor || 'Exploded View'}: A comprehensive technical deconstruction examining each modular component, mechanical tolerance, and operational interface.\n\n### Systematic Overview\nThis interactive model presents internal and external assemblies in precise spatial isolation, capturing kinematic alignment between disassembled modular elements and the integrated operational state.\n\n### Kinematics and Modularity\nEach subassembly is engineered to decouple physical forces, distribute thermal or electrical loads, and maintain structural integrity under dynamic stresses.`,
+    trivia: [
+      `${topic.topic} employs modular subassemblies engineered for strict dimensional tolerance and field serviceability.`,
+      `The exploded technical infographic displays internal cross-sections, leader callout lines, and 5600K balanced studio illumination.`,
+      `Cinematic assembly sequences illustrate disassembled floating parts gliding into alignment and interlocking into a rigid structure.`
+    ],
+    visualStylePrompt: `Hyper-detailed technical explosion of ${topic.topic} with leader callout lines on dark blueprint background.`,
+    componentList: [
+      'Structural Housing & Chassis',
+      'Primary Operational Core Assembly',
+      'Synchronization & Coupling Interface',
+      'Modulation & Actuation Mechanism'
+    ],
+    audioVibe: {
+      voiceName: 'Zephyr',
+      toneDescription: 'Authoritative, educational, precise engineering focus'
+    }
+  };
+
+  const components: ComponentPart[] = bundle?.components && bundle.components.length > 0
+    ? bundle.components
+    : [
+        {
+          name: `${topic.topic} Structural Housing & Chassis`,
+          shortDescription: 'Primary rigid framework maintaining optical, mechanical, or thermal parallelism.',
+          composition: 'Aerospace-grade structural alloy and composite reinforcement',
+          detailedContent: `The structural chassis of ${topic.topic} provides the foundational datum against which all moving and stationary components are aligned. Precision-machined datum faces minimize thermal drift and vibrational resonance.\n\nEngineering tolerances are maintained to sub-millimeter specifications, ensuring smooth kinematic motion across wide operating temperatures.`,
+          sources: ['https://en.wikipedia.org/wiki/Systems_engineering']
+        },
+        {
+          name: `${topic.topic} Primary Operational Core`,
+          shortDescription: 'Central functional engine responsible for primary energy, signal, or optical processing.',
+          composition: 'High-purity functional substrate and hardened dynamic elements',
+          detailedContent: `At the heart of ${topic.topic} lies the primary core assembly. It converts raw inputs into calibrated work through a series of interlocking stages.\n\nCritical wear surfaces feature surface-hardened coatings and friction-reducing geometries to maximize service lifespan under continuous operation.`,
+          sources: ['https://en.wikipedia.org/wiki/Mechanical_engineering']
+        },
+        {
+          name: 'Synchronization & Coupling Interface',
+          shortDescription: 'Dynamic linkages that transfer momentum and maintain temporal coordination across stages.',
+          composition: 'Precision gear train and elastomeric vibration dampeners',
+          detailedContent: `This subassembly coordinates motion between independent operational tiers. Anti-backlash gearing and balanced couplings eliminate lost motion and phase error during high-speed transitions.`,
+          sources: ['https://en.wikipedia.org/wiki/Coupling']
+        },
+        {
+          name: 'Control, Actuation & Feedback Unit',
+          shortDescription: 'Regulating subassembly providing user input translation and real-time operational feedback.',
+          composition: 'Micro-calibrated adjusters and tactile indexing detents',
+          detailedContent: `Allows operators to fine-tune system parameters with micrometer precision. Tactile indexing detents and visual indicator scales ensure repeatable settings and intuitive system control.`,
+          sources: ['https://en.wikipedia.org/wiki/Control_system']
+        }
+      ];
+
+  const hasVideo = Boolean(preloadedMedia.videoUrl || topic.videoUrl);
+  const resolvedTier: ModelTier = bundle?.manifest?.modelTier || 'pro';
+
+  return {
+    id: topic.id,
+    prompt: topic.topic,
+    timestamp: new Date(topic.timestamp).getTime() || Date.now(),
+    plan,
+    components,
+    narrationScript: bundle?.narrationScript || `Discover the inner workings and architectural deconstruction of ${topic.topic}.`,
+    infographicUrl: preloadedMedia.infographicUrl || topic.infographicUrl,
+    assembledUrl: preloadedMedia.assembledUrl || topic.assembledUrl,
+    videoUrl: preloadedMedia.videoUrl ?? topic.videoUrl ?? null,
+    audioUrl: preloadedMedia.audioUrl || topic.audioUrl,
+    hasVideo,
+    usage: [],
+    tier: resolvedTier,
+    config: {
+      ...CANONICAL_MODEL_PRESETS[resolvedTier],
+      ...bundle?.manifest?.modelsUsed,
+      enableVideo: hasVideo,
+    },
+  };
+}
+
 const App: React.FC = () => {
   const [history, setHistory] = useState<GenerationItem[]>([]);
   const [currentId, setCurrentId] = useState<string | null>(null);
@@ -92,6 +225,11 @@ const App: React.FC = () => {
   // API Key Management (Strict Session Isolation: SessionStorage ONLY)
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [pendingPrompt, setPendingPrompt] = useState<{ prompt: string; withVideo: boolean } | null>(null);
+
+  // Community Showcase Catalog State
+  const [catalog, setCatalog] = useState<CommunityCatalogItem[]>(() => SEED_COMMUNITY_CATALOG);
+  const [catalogLoading, setCatalogLoading] = useState<boolean>(true);
 
   // Community Contribution Modal & Toast Feedback State
   const [isContributeModalOpen, setIsContributeModalOpen] = useState(false);
@@ -106,11 +244,28 @@ const App: React.FC = () => {
     initializeApiKey();
     initGA();
 
+    let isMounted = true;
+    fetchCommunityCatalog()
+      .then(items => {
+        if (isMounted && Array.isArray(items) && items.length > 0) {
+          setCatalog(items);
+        }
+      })
+      .catch(err => {
+        console.warn("[App] Could not fetch catalog:", err);
+      })
+      .finally(() => {
+        if (isMounted) {
+          setCatalogLoading(false);
+        }
+      });
+
     const handleBeforeUnload = () => {
       revokeAllObjectURLs();
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => {
+      isMounted = false;
       window.removeEventListener('beforeunload', handleBeforeUnload);
       revokeAllObjectURLs();
     };
@@ -161,8 +316,8 @@ const App: React.FC = () => {
       return;
     }
 
-    // 4. No key found -> Open Splash
-    setIsModalOpen(true);
+    // 4. No key found -> Default to keyless browsing, modal remains closed
+    setIsModalOpen(false);
   };
 
   const handleSaveKey = (key: string) => {
@@ -188,6 +343,13 @@ const App: React.FC = () => {
     setGlobalApiKey(trimmedKey);
     setIsModalOpen(false);
     setError(null);
+
+    // Auto-resume generation if user queued a custom prompt in keyless mode
+    if (pendingPrompt) {
+      const nextPrompt = pendingPrompt;
+      setPendingPrompt(null);
+      handleGenerate(nextPrompt.prompt, nextPrompt.withVideo);
+    }
   };
 
   const handleClearKey = () => {
@@ -209,13 +371,52 @@ const App: React.FC = () => {
 
     setApiKey(null);
     setGlobalApiKey("");
-    setIsModalOpen(true); // Re-open as splash since we need a key
+    setIsModalOpen(false); // Clean transition to keyless browsing without modal trapping
     setError(null);
   };
 
   const handleOpenConfig = () => {
       setIsModalOpen(true);
       setError(null);
+  };
+
+  const handleBackToShowcase = () => {
+    setCurrentId(null);
+    setStatus(GenerationStatus.IDLE);
+  };
+
+  const handleSelectShowcaseTopic = async (topic: CommunityCatalogItem) => {
+    try {
+      const existing = history.find(h => h.id === topic.id);
+      if (existing) {
+        setCurrentId(topic.id);
+        setStatus(GenerationStatus.IDLE);
+        return;
+      }
+
+      // 1. Preload media assets into cache in parallel (zero API key required)
+      const preloadedMedia = await preloadCommunityTopicMedia(topic);
+
+      // 2. Fetch full bundle if available on edge or mock driver
+      let bundle: SanitizedGenerationBundle | null = null;
+      try {
+        bundle = await fetchCommunityTopic(topic.id);
+      } catch (e) {
+        console.warn("[App] Could not fetch community topic bundle, using synthesized adaptation:", e);
+      }
+
+      // 3. Adapt catalog item to full GenerationItem
+      const generationItem = adaptCatalogItemToGenerationItem(topic, preloadedMedia, bundle);
+
+      // 4. Update state: add to history and view item in DisplayArea
+      setHistory(prev => [generationItem, ...prev.filter(h => h.id !== topic.id)]);
+      setCurrentId(generationItem.id);
+      setStatus(GenerationStatus.IDLE);
+      setError(null);
+    } catch (err: any) {
+      console.error("[App] Failed to select showcase topic:", err);
+      setError(`Failed to load showcase topic: ${err?.message || 'Unknown error'}`);
+    }
   };
 
   const handleSelectTier = (tier: 'pro' | 'budget') => {
@@ -285,6 +486,7 @@ const App: React.FC = () => {
 
   const handleGenerate = async (prompt: string, withVideo: boolean, initialUsage: TokenUsage[] = []) => {
     if (!apiKey) {
+      setPendingPrompt({ prompt, withVideo });
       setIsModalOpen(true);
       return;
     }
@@ -467,8 +669,11 @@ const App: React.FC = () => {
 
   const currentItem = history.find(h => h.id === currentId) || null;
   const isProcessing = status !== GenerationStatus.IDLE && status !== GenerationStatus.COMPLETED && status !== GenerationStatus.FAILED;
-  // If we are viewing an old item, status should effectively be COMPLETED for display purposes
-  const effectiveStatus = currentId === currentItem?.id ? status : GenerationStatus.COMPLETED;
+  // If we are viewing a completed item, status should effectively be COMPLETED for display purposes
+  const isItemComplete = Boolean(currentItem?.plan && currentItem?.infographicUrl);
+  const effectiveStatus = isProcessing
+    ? status
+    : (isItemComplete ? GenerationStatus.COMPLETED : status);
 
   return (
     <div className="flex h-screen bg-slate-950 text-slate-200 font-sans overflow-hidden selection:bg-cyan-500/30">
@@ -476,11 +681,14 @@ const App: React.FC = () => {
       <ApiKeyModal 
         isOpen={isModalOpen} 
         onSave={handleSaveKey} 
-        onCancel={() => setIsModalOpen(false)}
+        onCancel={() => {
+          setIsModalOpen(false);
+          setPendingPrompt(null);
+        }}
         onClear={handleClearKey}
         initialValue={apiKey || ''}
         error={error}
-        isSplash={!apiKey} // Block if no key exists
+        hasPendingPrompt={Boolean(pendingPrompt)}
       />
 
       <ModelSettingsModal 
@@ -552,96 +760,22 @@ const App: React.FC = () => {
         <div className="absolute top-0 right-0 w-1/2 h-1/2 bg-cyan-500/5 blur-[120px] rounded-full -z-10"></div>
 
         {/* Top Navigation Header Bar */}
-        <header className="w-full bg-slate-950/80 backdrop-blur-md border-b border-slate-800/80 px-4 md:px-8 py-3 flex items-center justify-between gap-4 shrink-0 z-10">
-          {/* Left: Engine Status Badge */}
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900/80 border border-slate-800 text-xs font-medium text-slate-300">
-              <span className={`w-2 h-2 rounded-full ${
-                modelPreferences.tier === 'budget' 
-                  ? 'bg-emerald-400' 
-                  : modelPreferences.tier === 'custom' 
-                  ? 'bg-purple-400' 
-                  : 'bg-cyan-400'
-              } animate-pulse`} />
-              <span className="hidden sm:inline text-slate-400">Model Engine:</span>
-              <span className="text-cyan-300 font-bold uppercase tracking-wider text-[11px]">
-                {modelPreferences.tier === 'custom' 
-                  ? 'Custom' 
-                  : modelPreferences.tier === 'pro' 
-                  ? 'Pro Studio' 
-                  : 'Budget Saver'}
-              </span>
-            </div>
-          </div>
-
-          {/* Right: Tier Switcher Pill & Settings Gear */}
-          <div className="flex items-center gap-2.5 sm:gap-3">
-            {/* Segmented Pill [ Pro Studio | Budget Saver ] */}
-            <div className="flex items-center bg-slate-900/90 border border-slate-800 p-1 rounded-full shadow-inner">
-              {/* Pro Studio Segment */}
-              <button
-                type="button"
-                onClick={() => handleSelectTier('pro')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${
-                  modelPreferences.tier === 'pro'
-                    ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md shadow-cyan-500/25 ring-1 ring-cyan-400/50'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
-                }`}
-                title="Pro Studio: Premier quality models (Gemini 3 Pro, 2K Images, Veo 3.1)"
-              >
-                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                </svg>
-                <span className="whitespace-nowrap">Pro Studio</span>
-              </button>
-
-              {/* Budget Saver Segment */}
-              <button
-                type="button"
-                onClick={() => handleSelectTier('budget')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${
-                  modelPreferences.tier === 'budget'
-                    ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md shadow-emerald-500/25 ring-1 ring-emerald-400/50'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
-                }`}
-                title="Budget Saver: Fast, credit-conserving models (Gemini 2.5 Flash, Imagen 3 Fast, optional video)"
-              >
-                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span className="whitespace-nowrap">Budget Saver</span>
-              </button>
-
-              {/* Custom Overrides Pill */}
-              {modelPreferences.tier === 'custom' && (
-                <span className="ml-1 px-2.5 py-1 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-purple-500/20 text-purple-300 border border-purple-500/40 animate-pulse">
-                  Custom
-                </span>
-              )}
-            </div>
-
-            {/* Settings Gear Button */}
-            <button
-              type="button"
-              onClick={() => setIsModelSettingsOpen(true)}
-              className="p-2 rounded-full bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-400 hover:text-cyan-400 transition-all duration-200 hover:rotate-45"
-              title="Configure Model Settings & Advanced Overrides"
-              aria-label="Open Model Settings"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-            </button>
-          </div>
-        </header>
+        <Header
+          apiKey={apiKey}
+          modelTier={modelPreferences.tier}
+          onSelectTier={handleSelectTier}
+          onOpenModelSettings={() => setIsModelSettingsOpen(true)}
+          onOpenApiKeyModal={handleOpenConfig}
+          onNavigateHome={handleBackToShowcase}
+          isViewingTopic={currentItem !== null}
+        />
 
         <div className="flex-1 overflow-y-auto p-6 md:p-12 scroll-smooth">
           
           <InputArea 
             onSubmit={(prompt, withVideo) => handleGenerate(prompt, withVideo)}
             onSurprise={handleSurprise}
-            disabled={isProcessing || !apiKey}
+            disabled={isProcessing}
           />
 
           <ProgressTracker status={status} config={modelPreferences.config} />
@@ -653,7 +787,20 @@ const App: React.FC = () => {
             </div>
           )}
 
-          <DisplayArea item={currentItem} status={effectiveStatus} />
+          {/* In idle state with no current item selected: render CommunityShowcase */}
+          {!currentItem && status === GenerationStatus.IDLE ? (
+            <CommunityShowcase 
+              onSelectTopic={handleSelectShowcaseTopic}
+              catalogItems={catalog}
+              isLoading={catalogLoading}
+            />
+          ) : (
+            <DisplayArea 
+              item={currentItem} 
+              status={effectiveStatus} 
+              onBackToShowcase={handleBackToShowcase}
+            />
+          )}
 
         </div>
       </main>

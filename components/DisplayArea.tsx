@@ -6,6 +6,7 @@ import { MODEL_REGISTRY } from '../constants';
 interface DisplayAreaProps {
   item: GenerationItem | null;
   status: GenerationStatus;
+  onBackToShowcase?: () => void;
 }
 
 const getModelLabel = (modelId: string | undefined, defaultLabel: string): string => {
@@ -13,7 +14,7 @@ const getModelLabel = (modelId: string | undefined, defaultLabel: string): strin
   return MODEL_REGISTRY[modelId]?.displayName || modelId.toUpperCase();
 };
 
-const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status }) => {
+const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status, onBackToShowcase }) => {
   const [modalImage, setModalImage] = useState<string | null>(null);
   const [modalVideo, setModalVideo] = useState<string | null>(null);
   const [selectedComponent, setSelectedComponent] = useState<ComponentPart | null>(null);
@@ -202,7 +203,7 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status }) => {
   // Header Image Slot Logic
   const renderHeaderImage = () => {
       // 1. If Video is completed, we move the Assembled Image here.
-      if (hasVideo && status === GenerationStatus.COMPLETED && assembledUrl) {
+      if (hasVideo && (status === GenerationStatus.COMPLETED || status === GenerationStatus.IDLE) && assembledUrl) {
           return (
             <div className="w-full lg:w-80 shrink-0 h-48 lg:h-auto rounded-2xl overflow-hidden border border-slate-700 relative group animate-fade-in">
                 <img 
@@ -235,6 +236,29 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status }) => {
 
   return (
     <div className="space-y-12 animate-fade-in pb-10">
+      {/* Breadcrumb Navigation (rendered when onBackToShowcase is provided) */}
+      {onBackToShowcase && (
+        <nav aria-label="Breadcrumb" className="flex items-center justify-between gap-4 pb-2 border-b border-slate-800/50 text-xs font-mono">
+          <button
+            type="button"
+            onClick={onBackToShowcase}
+            className="inline-flex items-center gap-1.5 text-slate-400 hover:text-cyan-300 transition-colors py-1 px-2.5 rounded-lg hover:bg-slate-900 border border-transparent hover:border-slate-800 group cursor-pointer"
+          >
+            <svg className="w-3.5 h-3.5 text-cyan-500 group-hover:-translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            <span>← Back to Community Showcase</span>
+          </button>
+          
+          <div className="flex items-center gap-2 text-slate-500 truncate">
+            <span className="hidden sm:inline">Encyclopedia</span>
+            <span className="hidden sm:inline">/</span>
+            <span className="text-slate-400 uppercase tracking-wider">{plan.category}</span>
+            <span>/</span>
+            <span className="text-cyan-400 font-bold truncate max-w-[180px] sm:max-w-[300px]">{plan.displayTitle}</span>
+          </div>
+        </nav>
+      )}
       
       {/* 1. Header Area */}
       <div className="space-y-6 border-b border-slate-800 pb-8">
