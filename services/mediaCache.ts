@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Multi-Tier Media Cache & In-Memory Fallback Service (FEAT-09)
  * 
  * Provides high-performance binary Blob caching using browser IndexedDB with
@@ -177,6 +177,7 @@ export class IndexedDBMediaCache implements MediaCacheService {
     if (existing) {
       this.currentSizeBytes -= existing.size;
       this.revokePooledUrl(urlOrKey);
+      this.inMemoryStore.delete(urlOrKey); // Ensure entry cannot be evicted as LRU victim
     }
 
     while (this.currentSizeBytes + size > this.maxSizeBytes && this.inMemoryStore.size > 0) {
@@ -325,26 +326,22 @@ export class IndexedDBMediaCache implements MediaCacheService {
   }
 
   private async evictUntilFitsIDB(db: IDBDatabase, incomingSize: number, newKey: string): Promise<void> {
-    // Determine existing entry size if key already exists
-    const existingSize = await new Promise<number>((resolve) => {
-      const tx = db.transaction(STORE_NAME, 'readonly');
+    await new Promise<void>((resolve) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
       const store = tx.objectStore(STORE_NAME);
       const req = store.get(newKey);
       req.onsuccess = () => {
         if (req.result) {
           this.revokePooledUrl(newKey);
-          resolve(req.result.size || 0);
-        } else {
-          resolve(0);
+          store.delete(newKey);
         }
+        resolve();
       };
-      req.onerror = () => resolve(0);
+      req.onerror = () => resolve();
     });
 
     let currentTotal = await this.getCurrentSize();
-    let netAdditional = incomingSize - existingSize;
-
-    while (currentTotal + netAdditional > this.maxSizeBytes) {
+    while (currentTotal + incomingSize > this.maxSizeBytes) {
       const evicted = await this.evictSingleOldestIDB(db);
       if (!evicted) break;
       currentTotal -= evicted.size;

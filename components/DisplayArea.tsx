@@ -19,13 +19,15 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status }) => {
   const [selectedComponent, setSelectedComponent] = useState<ComponentPart | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioInstanceRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     // Reset audio state when item changes
-    if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.removeAttribute('src');
-        audioRef.current.load();
+    const audio = audioInstanceRef.current || audioRef.current;
+    if (audio) {
+        audio.pause();
+        audio.removeAttribute('src');
+        audio.load();
     }
     setIsPlaying(false);
     setSelectedComponent(null);
@@ -35,10 +37,12 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status }) => {
 
   useEffect(() => {
     return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.removeAttribute('src');
-        audioRef.current.load();
+      const el = audioInstanceRef.current;
+      if (el) {
+        el.pause();
+        el.removeAttribute('src');
+        el.load();
+        audioInstanceRef.current = null;
       }
     };
   }, []);
@@ -48,15 +52,23 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status }) => {
       if (isPlaying) {
           audioRef.current.pause();
       } else {
-          audioRef.current.play();
+          if (!audioRef.current.getAttribute('src') && item?.audioUrl) {
+              audioRef.current.src = item.audioUrl;
+              audioRef.current.load();
+          }
+          audioRef.current.play().catch(() => {});
       }
       setIsPlaying(!isPlaying);
   };
 
   const resetAudio = () => {
       if (!audioRef.current) return;
+      if (!audioRef.current.getAttribute('src') && item?.audioUrl) {
+          audioRef.current.src = item.audioUrl;
+          audioRef.current.load();
+      }
       audioRef.current.currentTime = 0;
-      audioRef.current.play();
+      audioRef.current.play().catch(() => {});
       setIsPlaying(true);
   };
 
@@ -263,7 +275,10 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status }) => {
                             <span className="text-xs text-purple-300 font-medium">Narrated by {plan.audioVibe?.voiceName || 'Gemini'}</span>
                         </div>
                         <audio 
-                            ref={audioRef} 
+                            ref={(el) => {
+                                audioRef.current = el;
+                                if (el) audioInstanceRef.current = el;
+                            }} 
                             src={audioUrl} 
                             onEnded={() => setIsPlaying(false)} 
                             className="hidden"

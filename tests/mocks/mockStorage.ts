@@ -67,6 +67,12 @@ export class MockIndexedDBMediaCache {
     const existing = this.db.get(urlOrKey);
     if (existing) {
       this.currentSizeBytes -= existing.size;
+      const existingUrl = this.objectUrls.get(urlOrKey);
+      if (existingUrl && typeof URL !== 'undefined' && URL.revokeObjectURL) {
+        URL.revokeObjectURL(existingUrl);
+      }
+      this.objectUrls.delete(urlOrKey);
+      this.db.delete(urlOrKey);
     }
     // Evict if over quota
     while (this.currentSizeBytes + size > this.maxSizeBytes && this.db.size > 0) {
