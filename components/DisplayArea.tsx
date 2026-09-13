@@ -1,42 +1,75 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { GenerationItem, ComponentPart, GenerationStatus } from '../types';
+import { MODEL_REGISTRY } from '../constants';
 
 interface DisplayAreaProps {
   item: GenerationItem | null;
   status: GenerationStatus;
+  onBackToShowcase?: () => void;
 }
 
-const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status }) => {
+const getModelLabel = (modelId: string | undefined, defaultLabel: string): string => {
+  if (!modelId) return defaultLabel;
+  return MODEL_REGISTRY[modelId]?.displayName || modelId.toUpperCase();
+};
+
+const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status, onBackToShowcase }) => {
   const [modalImage, setModalImage] = useState<string | null>(null);
   const [modalVideo, setModalVideo] = useState<string | null>(null);
   const [selectedComponent, setSelectedComponent] = useState<ComponentPart | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioInstanceRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     // Reset audio state when item changes
-    if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.currentTime = 0;
+    const audio = audioInstanceRef.current || audioRef.current;
+    if (audio) {
+        audio.pause();
+        audio.removeAttribute('src');
+        audio.load();
     }
     setIsPlaying(false);
+    setSelectedComponent(null);
+    setModalImage(null);
+    setModalVideo(null);
   }, [item?.id]);
+
+  useEffect(() => {
+    return () => {
+      const el = audioInstanceRef.current;
+      if (el) {
+        el.pause();
+        el.removeAttribute('src');
+        el.load();
+        audioInstanceRef.current = null;
+      }
+    };
+  }, []);
 
   const toggleAudio = () => {
       if (!audioRef.current) return;
       if (isPlaying) {
           audioRef.current.pause();
       } else {
-          audioRef.current.play();
+          if (!audioRef.current.getAttribute('src') && item?.audioUrl) {
+              audioRef.current.src = item.audioUrl;
+              audioRef.current.load();
+          }
+          audioRef.current.play().catch(() => {});
       }
       setIsPlaying(!isPlaying);
   };
 
   const resetAudio = () => {
       if (!audioRef.current) return;
+      if (!audioRef.current.getAttribute('src') && item?.audioUrl) {
+          audioRef.current.src = item.audioUrl;
+          audioRef.current.load();
+      }
       audioRef.current.currentTime = 0;
-      audioRef.current.play();
+      audioRef.current.play().catch(() => {});
       setIsPlaying(true);
   };
 
@@ -72,14 +105,15 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status }) => {
       if (hasVideo && videoUrl) {
            return (
              <div className="relative group w-full h-full">
-                <video 
+                 <video 
+                    key={videoUrl || item?.id}
                     src={videoUrl} 
                     controls 
                     autoPlay={false}
                     className="w-full h-full object-cover"
                 />
                 <div className="absolute top-4 left-4 bg-black/70 backdrop-blur px-3 py-1 rounded-full text-xs font-mono text-cyan-400 border border-cyan-500/30 z-10 pointer-events-none">
-                    VEO 3.1
+                    {getModelLabel(item?.config?.video, 'VEO 3.1').toUpperCase()}
                 </div>
                  <button 
                     onClick={() => setModalVideo(videoUrl)}
@@ -106,7 +140,7 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status }) => {
                     onClick={() => setModalImage(assembledUrl)}
                 />
                 <div className="absolute top-4 left-4 bg-black/70 backdrop-blur px-3 py-1 rounded-full text-xs font-mono text-cyan-400 border border-cyan-500/30 z-10 pointer-events-none">
-                    GEMINI 3 PRO IMAGE
+                    {getModelLabel(item?.config?.assembled, 'GEMINI 3 PRO IMAGE').toUpperCase()}
                 </div>
              </div>
           );
@@ -144,7 +178,7 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status }) => {
                     onClick={() => setModalImage(infographicUrl)}
                 />
                 <div className="absolute top-4 left-4 bg-black/70 backdrop-blur px-3 py-1 rounded-full text-xs font-mono text-purple-400 border border-purple-500/30 z-10 pointer-events-none">
-                     GEMINI 3 PRO IMAGE
+                     {getModelLabel(item?.config?.infographic, 'GEMINI 3 PRO IMAGE').toUpperCase()}
                 </div>
              </div>
           );
@@ -157,7 +191,7 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status }) => {
                  <div className="w-16 h-16 border-4 border-slate-700 border-t-purple-500 rounded-full animate-spin"></div>
                  <div className="flex flex-col items-center gap-1">
                     <span className="font-mono text-sm text-purple-400 font-bold">DRAFTING BLUEPRINT...</span>
-                    <span className="text-xs text-slate-500">Gemini 3 Pro Image</span>
+                    <span className="text-xs text-slate-500">{getModelLabel(item?.config?.infographic, 'Gemini 3 Pro Image')}</span>
                  </div>
             </div>
           );
@@ -169,7 +203,7 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status }) => {
   // Header Image Slot Logic
   const renderHeaderImage = () => {
       // 1. If Video is completed, we move the Assembled Image here.
-      if (hasVideo && status === GenerationStatus.COMPLETED && assembledUrl) {
+      if (hasVideo && (status === GenerationStatus.COMPLETED || status === GenerationStatus.IDLE) && assembledUrl) {
           return (
             <div className="w-full lg:w-80 shrink-0 h-48 lg:h-auto rounded-2xl overflow-hidden border border-slate-700 relative group animate-fade-in">
                 <img 
@@ -202,6 +236,29 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status }) => {
 
   return (
     <div className="space-y-12 animate-fade-in pb-10">
+      {/* Breadcrumb Navigation (rendered when onBackToShowcase is provided) */}
+      {onBackToShowcase && (
+        <nav aria-label="Breadcrumb" className="flex items-center justify-between gap-4 pb-2 border-b border-slate-800/50 text-xs font-mono">
+          <button
+            type="button"
+            onClick={onBackToShowcase}
+            className="inline-flex items-center gap-1.5 text-slate-400 hover:text-cyan-300 transition-colors py-1 px-2.5 rounded-lg hover:bg-slate-900 border border-transparent hover:border-slate-800 group cursor-pointer"
+          >
+            <svg className="w-3.5 h-3.5 text-cyan-500 group-hover:-translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            <span>← Back to Community Showcase</span>
+          </button>
+          
+          <div className="flex items-center gap-2 text-slate-500 truncate">
+            <span className="hidden sm:inline">Encyclopedia</span>
+            <span className="hidden sm:inline">/</span>
+            <span className="text-slate-400 uppercase tracking-wider">{plan.category}</span>
+            <span>/</span>
+            <span className="text-cyan-400 font-bold truncate max-w-[180px] sm:max-w-[300px]">{plan.displayTitle}</span>
+          </div>
+        </nav>
+      )}
       
       {/* 1. Header Area */}
       <div className="space-y-6 border-b border-slate-800 pb-8">
@@ -242,7 +299,10 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status }) => {
                             <span className="text-xs text-purple-300 font-medium">Narrated by {plan.audioVibe?.voiceName || 'Gemini'}</span>
                         </div>
                         <audio 
-                            ref={audioRef} 
+                            ref={(el) => {
+                                audioRef.current = el;
+                                if (el) audioInstanceRef.current = el;
+                            }} 
                             src={audioUrl} 
                             onEnded={() => setIsPlaying(false)} 
                             className="hidden"
@@ -260,7 +320,9 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status }) => {
                 
                 <div className="bg-slate-900/50 px-4 py-2 rounded-lg border border-slate-800">
                     <span className="text-slate-400 text-sm">Curated by </span>
-                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-400 font-bold">Gemini 3.1 Pro</span>
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-400 font-bold">
+                        {getModelLabel(item?.config?.planning, 'Gemini 3.1 Pro')}
+                    </span>
                 </div>
             </div>
         </div>
@@ -403,9 +465,10 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status }) => {
              <div className="bg-slate-950 p-6 rounded-2xl border border-slate-900 opacity-60">
                  <div className="text-[10px] text-slate-500 font-mono uppercase tracking-widest mb-4">System Analysis</div>
                  <div className="space-y-2 font-mono text-xs text-slate-600">
-                     <div className="flex justify-between"><span>MODEL</span> <span>GEMINI 3.1 PRO</span></div>
-                     <div className="flex justify-between"><span>RENDER</span> <span>VEO 3.1</span></div>
-                     <div className="flex justify-between"><span>STATUS</span> <span>OPTIMIZED</span></div>
+                     <div className="flex justify-between"><span>PLANNING</span> <span className="text-slate-400">{getModelLabel(item?.config?.planning, 'GEMINI 3.1 PRO').toUpperCase()}</span></div>
+                     <div className="flex justify-between"><span>INFOGRAPHIC</span> <span className="text-slate-400">{getModelLabel(item?.config?.infographic, 'GEMINI 3 PRO IMAGE').toUpperCase()}</span></div>
+                     <div className="flex justify-between"><span>RENDER</span> <span className="text-slate-400">{item?.hasVideo ? getModelLabel(item?.config?.video, 'VEO 3.1').toUpperCase() : 'DISABLED (IMAGE ONLY)'}</span></div>
+                     <div className="flex justify-between"><span>TIER</span> <span className="text-cyan-400 font-bold uppercase">{item?.tier ? (item.tier === 'budget' ? 'BUDGET SAVER' : item.tier === 'custom' ? 'CUSTOM' : 'PRO STUDIO') : 'PRO STUDIO'}</span></div>
                  </div>
              </div>
          </div>
@@ -447,6 +510,7 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status }) => {
         <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in" onClick={() => setModalVideo(null)}>
             <div className="relative w-full max-w-5xl flex flex-col items-center justify-center">
                 <video 
+                    key={modalVideo}
                     src={modalVideo} 
                     controls
                     autoPlay

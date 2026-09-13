@@ -1,8 +1,10 @@
-import React from 'react';
-import { GenerationStatus } from '../types';
+import React, { useMemo } from 'react';
+import { GenerationStatus, StageModelConfig } from '../types';
+import { MODEL_REGISTRY, MODEL_AUTHORING, MODEL_TTS } from '../constants';
 
 interface ProgressTrackerProps {
   status: GenerationStatus;
+  config?: StageModelConfig;
 }
 
 const STATUS_MAP = {
@@ -17,15 +19,30 @@ const STATUS_MAP = {
   [GenerationStatus.FAILED]: -1,
 };
 
-const steps = [
-  { id: GenerationStatus.PLANNING, label: "Planning", sub: "Gemini 3.1 Pro" },
-  { id: GenerationStatus.GENERATING_INFOGRAPHIC, label: "Blueprinting", sub: "Gemini 3 Pro Image" },
-  { id: GenerationStatus.GENERATING_ASSEMBLY, label: "Manufacturing", sub: "Gemini 3 Pro Image" },
-  { id: GenerationStatus.ENRICHING, label: "Authoring", sub: "Gemini 2.5 Flash & Search" },
-  { id: GenerationStatus.ANIMATING, label: "Animating & Narrating", sub: "Veo 3.1 & Gemini TTS" },
-];
+const ProgressTracker: React.FC<ProgressTrackerProps> = ({ status, config }) => {
+  const steps = useMemo(() => {
+    const planModel = config?.planning ? (MODEL_REGISTRY[config.planning]?.displayName || 'Gemini 3.1 Pro') : 'Gemini 3.1 Pro';
+    const infoModel = config?.infographic ? (MODEL_REGISTRY[config.infographic]?.displayName || 'Gemini 3 Pro Image') : 'Gemini 3 Pro Image';
+    const assemModel = config?.assembled ? (MODEL_REGISTRY[config.assembled]?.displayName || 'Gemini 3 Pro Image') : 'Gemini 3 Pro Image';
+    const deepModel = MODEL_REGISTRY[MODEL_AUTHORING]?.displayName || 'Gemini 2.5 Flash';
+    const videoModel = config?.video ? (MODEL_REGISTRY[config.video]?.displayName || 'Veo 3.1') : 'Veo 3.1';
+    const ttsModel = MODEL_REGISTRY[MODEL_TTS]?.displayName || 'Gemini TTS';
 
-const ProgressTracker: React.FC<ProgressTrackerProps> = ({ status }) => {
+    const isVideoDisabled = config?.enableVideo === false;
+
+    return [
+      { id: GenerationStatus.PLANNING, label: "Planning", sub: planModel },
+      { id: GenerationStatus.GENERATING_INFOGRAPHIC, label: "Blueprinting", sub: infoModel },
+      { id: GenerationStatus.GENERATING_ASSEMBLY, label: "Manufacturing", sub: assemModel },
+      { id: GenerationStatus.ENRICHING, label: "Authoring", sub: `${deepModel} & Search` },
+      { 
+        id: GenerationStatus.ANIMATING, 
+        label: isVideoDisabled ? "Narrating" : "Animating & Narrating", 
+        sub: isVideoDisabled ? ttsModel : `${videoModel} & ${ttsModel}` 
+      },
+    ];
+  }, [config]);
+
   if (status === GenerationStatus.IDLE) return null;
 
   const currentStepIndex = STATUS_MAP[status];

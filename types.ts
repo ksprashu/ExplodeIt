@@ -1,5 +1,50 @@
 import { Type } from "@google/genai";
 
+export type ModelTier = 'pro' | 'budget' | 'custom';
+
+export interface StageModelConfig {
+  planning: string;
+  infographic: string;
+  assembled: string;
+  video: string;
+  narration: string;
+  enableVideo: boolean;
+}
+
+export interface ModelPricingEntry {
+  id: string;
+  displayName: string;
+  type: 'token' | 'image' | 'video' | 'tts';
+  rates: {
+    inputPer1kTokens?: number;
+    outputPer1kTokens?: number;
+    perImage?: number;
+    perVideo?: number;
+    per1kChars?: number;
+  };
+  // Convenience aliases for backward compatibility
+  inputPer1kTokens?: number;
+  outputPer1kTokens?: number;
+  perImage?: number;
+  perVideo?: number;
+  per1kChars?: number;
+}
+
+export interface ModelPreset {
+  id: ModelTier;
+  name: string;
+  tagline: string;
+  description: string;
+  badgeColor?: string;
+  config: StageModelConfig;
+  estimatedCost?: number;
+}
+
+export interface UserPreferences {
+  activeTier: ModelTier;
+  customConfig: StageModelConfig;
+}
+
 export enum GenerationStatus {
   IDLE = 'IDLE',
   GENERATING_RANDOM = 'GENERATING_RANDOM',
@@ -71,4 +116,71 @@ export interface GenerationItem {
   hasVideo: boolean;
   
   usage: TokenUsage[];
+
+  // Model Tier & Configuration (Optional)
+  tier?: ModelTier;
+  config?: StageModelConfig;
 }
+
+/**
+ * Sanitized Community Bundle (PROJECT.md § Interface Contracts)
+ * Strictly scrubbed and allowlist-projected generation item with genuine binary Blobs.
+ */
+export interface SanitizedGenerationBundle {
+  manifest: {
+    id: string;
+    topic: string;
+    timestamp: string; // ISO 8601 string
+    domain: string;
+    metaphor: string;
+    modelTier: ModelTier;
+    modelsUsed: Partial<StageModelConfig>;
+  };
+  plan: ObjectPlan;
+  components: ComponentPart[];
+  narrationScript: string;
+  media: {
+    infographicBlob: Blob;
+    assembledBlob: Blob;
+    videoBlob?: Blob;
+    audioBlob: Blob;
+  };
+}
+
+/**
+ * Public Community Catalog Item (PROJECT.md § Interface Contracts)
+ * Represents an indexed topic item in Cloudflare R2 / showcase.
+ */
+export interface CommunityCatalogItem {
+  id: string;
+  topic: string;
+  timestamp: string; // ISO 8601 string
+  domain: string;
+  metaphor: string;
+  infographicUrl: string;
+  assembledUrl: string;
+  videoUrl?: string;
+  audioUrl: string;
+  previewUrl: string;
+}
+
+/**
+ * Result of community contribution upload operation.
+ */
+export interface UploadResult {
+  success: boolean;
+  topicId: string;
+  catalogItem?: CommunityCatalogItem;
+  url?: string;
+  isMock?: boolean;
+  error?: string;
+}
+
+/**
+ * Master catalog manifest stored in R2 (catalog.json)
+ */
+export interface CatalogManifest {
+  version: string;
+  lastUpdated: string;
+  topics: CommunityCatalogItem[];
+}

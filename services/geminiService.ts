@@ -1,5 +1,5 @@
 import { GoogleGenAI, Modality } from "@google/genai";
-import { ObjectPlan, ComponentPart, TokenUsage, GenerationItem } from "../types";
+import { ObjectPlan, ComponentPart, TokenUsage, GenerationItem, StageModelConfig } from "../types";
 import { 
   MODEL_PLANNING, 
   MODEL_AUTHORING,
@@ -10,6 +10,7 @@ import {
   MODEL_SURPRISE, 
   PROMPTS, 
   PRICING, 
+  calculateModelCost,
   PlanSchema 
 } from "../constants";
 import { trackGeminiCall } from "./analytics";
@@ -41,28 +42,8 @@ const callWithRetry = async <T>(fn: () => Promise<T>, retries = 3, delay = 1000,
     throw new Error(`Failed after ${retries} attempts`);
 };
 
-const calculateCost = (model: string, input: number, output: number, isMedia: boolean = false): number => {
-    let cost = 0;
-    if (model === MODEL_PLANNING) {
-        cost += (input / 1000) * (PRICING[MODEL_PLANNING]?.inputPer1kTokens ?? 0);
-        cost += (output / 1000) * (PRICING[MODEL_PLANNING]?.outputPer1kTokens ?? 0);
-    } else if (model === MODEL_AUTHORING) {
-        cost += (input / 1000) * (PRICING[MODEL_AUTHORING]?.inputPer1kTokens ?? 0);
-        cost += (output / 1000) * (PRICING[MODEL_AUTHORING]?.outputPer1kTokens ?? 0);
-    } else if (model === MODEL_SCRIPT) {
-        cost += (input / 1000) * (PRICING[MODEL_SCRIPT]?.inputPer1kTokens ?? 0);
-        cost += (output / 1000) * (PRICING[MODEL_SCRIPT]?.outputPer1kTokens ?? 0);
-    } else if (model === MODEL_SURPRISE) {
-        cost += (input / 1000) * (PRICING[MODEL_SURPRISE]?.inputPer1kTokens ?? 0);
-        cost += (output / 1000) * (PRICING[MODEL_SURPRISE]?.outputPer1kTokens ?? 0);
-    } else if (model === MODEL_IMAGE) {
-        cost = PRICING[MODEL_IMAGE]?.perImage ?? 0;
-    } else if (model === MODEL_VIDEO) {
-        cost = PRICING[MODEL_VIDEO]?.perVideo ?? 0;
-    } else if (model === MODEL_TTS) {
-        cost = (input / 1000) * (PRICING[MODEL_TTS]?.per1kChars ?? 0);
-    }
-    return parseFloat(cost.toFixed(5));
+export const calculateCost = (model: string, input: number, output: number, isMedia: boolean = false): number => {
+    return calculateModelCost(model, input, output, isMedia ? undefined : (model === MODEL_TTS ? input : undefined));
 };
 
 // 1. SURPRISE ME (Flash - Faster)
@@ -100,13 +81,25 @@ export const getRandomObject = async (): Promise<{ name: string; usage: TokenUsa
   }, 3, 1000, "Surprise Me (Flash)");
 };
 
+export interface GenerateVideoOptions {
+    mode?: 'assembly' | 'disassembly';
+    model?: string;
+    stageConfig?: Partial<StageModelConfig>;
+}
+
 // 2. PLAN OBJECT (Gemini 3 Pro)
-export const planObject = async (itemName: string): Promise<{ data: ObjectPlan; usage: TokenUsage }> => {
+export const planObject = async (
+    itemName: string,
+    stageModelOverride?: string | Partial<StageModelConfig>
+): Promise<{ data: ObjectPlan; usage: TokenUsage }> => {
     const ai = getAI();
+    const model = (typeof stageModelOverride === 'string' 
+        ? stageModelOverride 
+        : stageModelOverride?.planning) || MODEL_PLANNING;
     
     return callWithRetry(async () => {
         const response = await ai.models.generateContent({
-            model: MODEL_PLANNING,
+            model: model,
             contents: PROMPTS.PLAN_OBJECT(itemName),
             config: {
                 tools: [{ googleSearch: {} }],
@@ -118,109 +111,165 @@ export const planObject = async (itemName: string): Promise<{ data: ObjectPlan; 
         if (!response.text) throw new Error("Failed to plan object");
         const data = JSON.parse(response.text) as ObjectPlan;
 
-        trackGeminiCall(MODEL_PLANNING, "Plan Object", "success", response.usageMetadata?.candidatesTokenCount || 0);
+        trackGeminiCall(model, "Plan Object", "success", response.usageMetadata?.candidatesTokenCount || 0);
 
         return {
             data,
             usage: {
-                model: MODEL_PLANNING,
+                model: model,
                 inputTokens: response.usageMetadata?.promptTokenCount || 0,
                 outputTokens: response.usageMetadata?.candidatesTokenCount || 0,
-                costEstimate: calculateCost(MODEL_PLANNING, response.usageMetadata?.promptTokenCount || 0, response.usageMetadata?.candidatesTokenCount || 0)
+                costEstimate: calculateCost(model, response.usageMetadata?.promptTokenCount || 0, response.usageMetadata?.candidatesTokenCount || 0)
             }
         };
     }, 3, 1000, "Plan Object");
 };
 
 // 3. GENERATE INFOGRAPHIC (Pro Image)
-export const generateInfographic = async (itemName: string, plan: ObjectPlan): Promise<{ url: string; usage: TokenUsage }> => {
+export const generateInfographic = async (
+    itemName: string, 
+    plan: ObjectPlan,
+    stageModelOverride?: string | Partial<StageModelConfig>
+): Promise<{ url: string; usage: TokenUsage }> => {
     const ai = getAI();
+    const model = (typeof stageModelOverride === 'string'
+        ? stageModelOverride
+        : stageModelOverride?.infographic) || MODEL_IMAGE;
     const prompt = PROMPTS.INFOGRAPHIC(itemName, plan.visualStylePrompt, plan.componentList, plan.domainType, plan.visualMetaphor);
 
     return callWithRetry(async () => {
-        const response = await ai.models.generateContent({
-            model: MODEL_IMAGE,
-            contents: prompt,
-            config: {
-                imageConfig: {
-                    aspectRatio: "16:9",
-                    imageSize: "2K"
-                }
-            }
-        });
-
         let base64Data = "";
-        for (const part of response.candidates?.[0]?.content?.parts || []) {
-            if (part.inlineData) {
-                base64Data = part.inlineData.data;
-                break;
+
+        if (model.startsWith('imagen-') && typeof (ai.models as any).generateImages === 'function') {
+            try {
+                const imgRes = await (ai.models as any).generateImages({
+                    model,
+                    prompt,
+                    config: { numberOfImages: 1, aspectRatio: '16:9' }
+                });
+                base64Data = imgRes.generatedImages?.[0]?.image?.imageBytes || "";
+            } catch (err) {
+                console.warn("Imagen generation failed, attempting generateContent fallback:", err);
+            }
+        }
+
+        if (!base64Data) {
+            const response = await ai.models.generateContent({
+                model: model,
+                contents: prompt,
+                config: {
+                    imageConfig: {
+                        aspectRatio: "16:9",
+                        imageSize: "2K"
+                    }
+                }
+            });
+
+            for (const part of response.candidates?.[0]?.content?.parts || []) {
+                if (part.inlineData) {
+                    base64Data = part.inlineData.data;
+                    break;
+                }
             }
         }
         if (!base64Data) throw new Error("Failed to generate infographic");
 
-        trackGeminiCall(MODEL_IMAGE, "Generate Infographic", "success");
+        trackGeminiCall(model, "Generate Infographic", "success");
 
         return {
             url: `data:image/png;base64,${base64Data}`,
             usage: {
-                model: MODEL_IMAGE,
-                inputTokens: prompt.length / 4,
+                model: model,
+                inputTokens: Math.round(prompt.length / 4),
                 outputTokens: 0,
-                costEstimate: calculateCost(MODEL_IMAGE, 0, 0, true)
+                costEstimate: calculateCost(model, 0, 0, true)
             }
         };
     }, 3, 2000, "Infographic Generation");
 };
 
 // 4. GENERATE ASSEMBLED IMAGE (Pro Image - Image to Image)
-export const generateAssembledImage = async (itemName: string, title: string, description: string, domain: string, infographicBase64: string): Promise<{ url: string; usage: TokenUsage }> => {
+export const generateAssembledImage = async (
+    itemName: string, 
+    title: string, 
+    description: string, 
+    domain: string, 
+    infographicBase64: string,
+    stageModelOverride?: string | Partial<StageModelConfig>
+): Promise<{ url: string; usage: TokenUsage }> => {
     const ai = getAI();
+    const model = (typeof stageModelOverride === 'string'
+        ? stageModelOverride
+        : stageModelOverride?.assembled) || MODEL_IMAGE;
     const cleanBase64 = infographicBase64.replace(/^data:image\/\w+;base64,/, "");
     const prompt = PROMPTS.ASSEMBLED(itemName, title, description, domain);
 
     return callWithRetry(async () => {
-        const response = await ai.models.generateContent({
-            model: MODEL_IMAGE,
-            contents: {
-                parts: [
-                    { text: prompt },
-                    { inlineData: { mimeType: 'image/png', data: cleanBase64 } }
-                ]
-            },
-            config: {
-                imageConfig: {
-                    aspectRatio: "16:9",
-                    imageSize: "2K"
-                }
-            }
-        });
-
         let base64Data = "";
-        for (const part of response.candidates?.[0]?.content?.parts || []) {
-            if (part.inlineData) {
-                base64Data = part.inlineData.data;
-                break;
+
+        if (model.startsWith('imagen-') && typeof (ai.models as any).generateImages === 'function') {
+            try {
+                const imgRes = await (ai.models as any).generateImages({
+                    model,
+                    prompt,
+                    config: { numberOfImages: 1, aspectRatio: '16:9' }
+                });
+                base64Data = imgRes.generatedImages?.[0]?.image?.imageBytes || "";
+            } catch (err) {
+                console.warn("Imagen generation failed, falling back to generateContent:", err);
+            }
+        }
+
+        if (!base64Data) {
+            const response = await ai.models.generateContent({
+                model: model,
+                contents: {
+                    parts: [
+                        { text: prompt },
+                        { inlineData: { mimeType: 'image/png', data: cleanBase64 } }
+                    ]
+                },
+                config: {
+                    imageConfig: {
+                        aspectRatio: "16:9",
+                        imageSize: "2K"
+                    }
+                }
+            });
+
+            for (const part of response.candidates?.[0]?.content?.parts || []) {
+                if (part.inlineData) {
+                    base64Data = part.inlineData.data;
+                    break;
+                }
             }
         }
         if (!base64Data) throw new Error("Failed to generate assembled image");
 
-        trackGeminiCall(MODEL_IMAGE, "Generate Assembled Image", "success");
+        trackGeminiCall(model, "Generate Assembled Image", "success");
 
         return {
             url: `data:image/png;base64,${base64Data}`,
             usage: {
-                model: MODEL_IMAGE,
-                inputTokens: prompt.length / 4,
+                model: model,
+                inputTokens: Math.round(prompt.length / 4),
                 outputTokens: 0,
-                costEstimate: calculateCost(MODEL_IMAGE, 0, 0, true)
+                costEstimate: calculateCost(model, 0, 0, true)
             }
         };
     }, 3, 2000, "Assembled Image Generation");
 };
 
 // 5. ENRICH COMPONENT DETAILS (Gemini 2.5 Flash + Search - BATCHED PARALLEL)
-export const enrichComponentDetails = async (itemName: string, components: string[]): Promise<{ data: ComponentPart[]; usage: TokenUsage[] }> => {
+export const enrichComponentDetails = async (
+    itemName: string, 
+    components: string[],
+    stageModelOverride?: string | Partial<StageModelConfig>
+): Promise<{ data: ComponentPart[]; usage: TokenUsage[] }> => {
     const ai = getAI();
+    const model = (typeof stageModelOverride === 'string'
+        ? stageModelOverride
+        : (stageModelOverride as any)?.authoring || stageModelOverride?.planning) || MODEL_AUTHORING;
     const BATCH_SIZE = 3;
     const usageLogs: TokenUsage[] = [];
     const allComponentDetails: ComponentPart[] = [];
@@ -229,7 +278,7 @@ export const enrichComponentDetails = async (itemName: string, components: strin
     const processBatch = async (batch: string[]): Promise<ComponentPart[]> => {
         return callWithRetry(async () => {
             const response = await ai.models.generateContent({
-                model: MODEL_AUTHORING,
+                model: model,
                 contents: PROMPTS.DEEP_DIVE(itemName, batch),
                 config: {
                     tools: [{ googleSearch: {} }],
@@ -265,13 +314,13 @@ export const enrichComponentDetails = async (itemName: string, components: strin
             }
             
             usageLogs.push({
-                model: MODEL_AUTHORING,
+                model: model,
                 inputTokens: response.usageMetadata?.promptTokenCount || 0,
                 outputTokens: response.usageMetadata?.candidatesTokenCount || 0,
-                costEstimate: calculateCost(MODEL_AUTHORING, response.usageMetadata?.promptTokenCount || 0, response.usageMetadata?.candidatesTokenCount || 0)
+                costEstimate: calculateCost(model, response.usageMetadata?.promptTokenCount || 0, response.usageMetadata?.candidatesTokenCount || 0)
             });
 
-            trackGeminiCall(MODEL_AUTHORING, "Enrich Details Batch", "success", response.usageMetadata?.candidatesTokenCount || 0);
+            trackGeminiCall(model, "Enrich Details Batch", "success", response.usageMetadata?.candidatesTokenCount || 0);
 
             // Attach sources to each component in this batch for attribution
             return result.components.map(c => ({
@@ -299,17 +348,49 @@ export const enrichComponentDetails = async (itemName: string, components: strin
 };
 
 // 6. GENERATE VIDEO (Veo)
-export const generateVideo = async (itemName: string, domain: string, metaphor: string, assembledUrl: string, infographicUrl: string): Promise<{ url: string; usage: TokenUsage }> => {
+export const generateVideo = async (
+    itemName: string, 
+    domain: string, 
+    metaphor: string, 
+    assembledUrl: string, 
+    infographicUrl: string,
+    stageModelOverride?: string | Partial<StageModelConfig> | GenerateVideoOptions
+): Promise<{ url: string; usage: TokenUsage }> => {
     const ai = getAI();
-    const cleanStart = assembledUrl.replace(/^data:image\/\w+;base64,/, "");
-    const cleanEnd = infographicUrl.replace(/^data:image\/\w+;base64,/, "");
+    let model = MODEL_VIDEO;
+    let mode: 'assembly' | 'disassembly' = 'assembly';
+
+    if (typeof stageModelOverride === 'string') {
+        model = stageModelOverride;
+    } else if (stageModelOverride && typeof stageModelOverride === 'object') {
+        if ('mode' in stageModelOverride && stageModelOverride.mode) {
+            mode = stageModelOverride.mode;
+        }
+        if ('model' in stageModelOverride && stageModelOverride.model) {
+            model = stageModelOverride.model;
+        } else if ('video' in stageModelOverride && (stageModelOverride as StageModelConfig).video) {
+            model = (stageModelOverride as StageModelConfig).video;
+        }
+    }
+
+    const cleanAssembled = assembledUrl.replace(/^data:image\/\w+;base64,/, "");
+    const cleanInfographic = infographicUrl.replace(/^data:image\/\w+;base64,/, "");
+
+    const isDisassembly = mode === 'disassembly';
+    // For assembly: start frame is exploded infographic, end frame is assembled product
+    // For disassembly: start frame is assembled product, end frame is exploded infographic
+    const startFrameBytes = isDisassembly ? cleanAssembled : cleanInfographic;
+    const endFrameBytes = isDisassembly ? cleanInfographic : cleanAssembled;
+    const promptText = isDisassembly 
+        ? PROMPTS.VIDEO_DISASSEMBLY(itemName, domain, metaphor)
+        : PROMPTS.VIDEO_ASSEMBLY(itemName, domain, metaphor);
 
     return callWithRetry(async () => {
         let operation = await ai.models.generateVideos({
-            model: MODEL_VIDEO,
-            prompt: PROMPTS.VIDEO(itemName, domain, metaphor),
+            model: model,
+            prompt: promptText,
             image: {
-                imageBytes: cleanStart,
+                imageBytes: startFrameBytes,
                 mimeType: 'image/png',
             },
             config: {
@@ -317,7 +398,7 @@ export const generateVideo = async (itemName: string, domain: string, metaphor: 
                 resolution: '720p',
                 aspectRatio: '16:9',
                 lastFrame: {
-                    imageBytes: cleanEnd,
+                    imageBytes: endFrameBytes,
                     mimeType: 'image/png'
                 }
             }
@@ -335,41 +416,55 @@ export const generateVideo = async (itemName: string, domain: string, metaphor: 
         const videoBlob = await videoResponse.blob();
         const url = URL.createObjectURL(videoBlob);
 
-        trackGeminiCall(MODEL_VIDEO, "Generate Video", "success");
+        trackGeminiCall(model, "Generate Video", "success");
 
         return {
             url,
             usage: {
-                model: MODEL_VIDEO,
+                model: model,
                 inputTokens: 100,
                 outputTokens: 0,
-                costEstimate: calculateCost(MODEL_VIDEO, 0, 0, true)
+                costEstimate: calculateCost(model, 0, 0, true)
             }
         };
     }, 2, 5000, "Video Generation");
 };
 
 // 7. GENERATE AUDIO NARRATION (Flash Lite Script -> TTS)
-export const generateAudioNarration = async (itemName: string, originStory: string, detailedArticle: string, trivia: string[], voiceName: string): Promise<{ url: string; script: string; usage: TokenUsage[] }> => {
+export const generateAudioNarration = async (
+    itemName: string, 
+    originStory: string, 
+    detailedArticle: string, 
+    trivia: string[], 
+    voiceName: string,
+    stageModelOverride?: string | Partial<StageModelConfig>
+): Promise<{ url: string; script: string; usage: TokenUsage[] }> => {
     const ai = getAI();
     const usageLogs: TokenUsage[] = [];
+
+    const scriptModel = (typeof stageModelOverride === 'string'
+        ? (stageModelOverride.includes('tts') ? MODEL_SCRIPT : stageModelOverride)
+        : stageModelOverride?.narration) || MODEL_SCRIPT;
+    const ttsModel = (typeof stageModelOverride === 'string' && stageModelOverride.includes('tts')
+        ? stageModelOverride
+        : (stageModelOverride as any)?.tts) || MODEL_TTS;
 
     // Step A: Generate Script (Gemini Flash Lite)
     const scriptRes = await callWithRetry(async () => {
         const response = await ai.models.generateContent({
-            model: MODEL_SCRIPT,
+            model: scriptModel,
             contents: PROMPTS.NARRATION_SCRIPT(itemName, originStory, detailedArticle, trivia)
         });
         
         const script = response.text || "";
         usageLogs.push({
-            model: MODEL_SCRIPT,
+            model: scriptModel,
             inputTokens: response.usageMetadata?.promptTokenCount || 0,
             outputTokens: response.usageMetadata?.candidatesTokenCount || 0,
-            costEstimate: calculateCost(MODEL_SCRIPT, response.usageMetadata?.promptTokenCount || 0, response.usageMetadata?.candidatesTokenCount || 0)
+            costEstimate: calculateCost(scriptModel, response.usageMetadata?.promptTokenCount || 0, response.usageMetadata?.candidatesTokenCount || 0)
         });
         
-        trackGeminiCall(MODEL_SCRIPT, "Generate Script", "success", response.usageMetadata?.candidatesTokenCount || 0);
+        trackGeminiCall(scriptModel, "Generate Script", "success", response.usageMetadata?.candidatesTokenCount || 0);
 
         return script;
     }, 3, 1000, "Script Gen");
@@ -383,7 +478,7 @@ export const generateAudioNarration = async (itemName: string, originStory: stri
 
     const audioRes = await callWithRetry(async () => {
         const response = await ai.models.generateContent({
-            model: MODEL_TTS,
+            model: ttsModel,
             contents: { parts: [{ text: scriptRes }] },
             config: {
                 responseModalities: [Modality.AUDIO],
@@ -416,13 +511,13 @@ export const generateAudioNarration = async (itemName: string, originStory: stri
         const url = URL.createObjectURL(wavBlob);
 
         usageLogs.push({
-            model: MODEL_TTS,
+            model: ttsModel,
             inputTokens: scriptRes.length, // Char count approx
             outputTokens: 0,
-            costEstimate: calculateCost(MODEL_TTS, scriptRes.length, 0)
+            costEstimate: calculateCost(ttsModel, scriptRes.length, 0)
         });
 
-        trackGeminiCall(MODEL_TTS, "Generate Audio", "success", scriptRes.length);
+        trackGeminiCall(ttsModel, "Generate Audio", "success", scriptRes.length);
 
         return url;
     }, 3, 2000, "TTS Gen");
