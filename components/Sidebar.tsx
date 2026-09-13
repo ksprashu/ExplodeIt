@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
-import { GenerationItem } from '../types';
+import { GenerationItem, ModelTier, StageModelConfig } from '../types';
+import { estimateRunCost } from '../constants';
 
 interface SidebarProps {
   history: GenerationItem[];
@@ -8,9 +9,22 @@ interface SidebarProps {
   onClear: () => void;
   onChangeKey: () => void;
   hasKey: boolean;
+  currentTier?: ModelTier;
+  currentConfig?: StageModelConfig;
+  onOpenModelSettings?: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ history, currentId, onSelect, onClear, onChangeKey, hasKey }) => {
+const Sidebar: React.FC<SidebarProps> = ({ 
+  history, 
+  currentId, 
+  onSelect, 
+  onClear, 
+  onChangeKey, 
+  hasKey,
+  currentTier,
+  currentConfig,
+  onOpenModelSettings,
+}) => {
   
   const totalStats = useMemo(() => {
     return history.reduce((acc, item) => {
@@ -22,6 +36,11 @@ const Sidebar: React.FC<SidebarProps> = ({ history, currentId, onSelect, onClear
       return acc;
     }, { totalCost: 0, totalInput: 0, totalOutput: 0 });
   }, [history]);
+
+  const nextRunEstimate = useMemo(() => {
+    if (!currentConfig) return null;
+    return estimateRunCost(currentConfig);
+  }, [currentConfig]);
 
   return (
     <aside className="w-full md:w-80 bg-slate-900 border-r border-slate-800 flex flex-col h-screen sticky top-0 overflow-hidden shrink-0 shadow-2xl z-20">
@@ -53,36 +72,66 @@ const Sidebar: React.FC<SidebarProps> = ({ history, currentId, onSelect, onClear
                 <p className="text-slate-700 text-xs mt-1">Start by typing above!</p>
             </div>
           ) : (
-            history.slice().reverse().map((item) => (
-              <button
-                key={item.id}
-                onClick={() => onSelect(item)}
-                className={`w-full text-left p-4 rounded-xl transition-all duration-200 border group ${
-                  currentId === item.id 
-                  ? 'bg-slate-800 border-cyan-500/50 text-cyan-50 shadow-md' 
-                  : 'bg-slate-900/30 border-slate-800 text-slate-400 hover:bg-slate-800 hover:text-slate-200'
-                }`}
-              >
-                <div className="font-bold truncate text-sm mb-1">{item.prompt}</div>
-                <div className="text-[10px] uppercase tracking-wide opacity-60 flex justify-between items-center">
-                  <span>{new Date(item.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                  <span className={`px-1.5 py-0.5 rounded ${item.hasVideo ? 'bg-purple-500/20 text-purple-300' : 'bg-blue-500/20 text-blue-300'}`}>
-                    {item.hasVideo ? 'Video' : 'Image'}
-                  </span>
-                </div>
-              </button>
-            ))
+            history.slice().reverse().map((item) => {
+              const itemCost = item.usage.reduce((sum, u) => sum + (u.costEstimate || 0), 0);
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => onSelect(item)}
+                  className={`w-full text-left p-4 rounded-xl transition-all duration-200 border group ${
+                    currentId === item.id 
+                    ? 'bg-slate-800 border-cyan-500/50 text-cyan-50 shadow-md' 
+                    : 'bg-slate-900/30 border-slate-800 text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                  }`}
+                >
+                  <div className="font-bold truncate text-sm mb-1">{item.prompt}</div>
+                  <div className="text-[10px] uppercase tracking-wide opacity-75 flex justify-between items-center">
+                    <span>{new Date(item.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                    <div className="flex items-center gap-1.5">
+                      {itemCost > 0 && (
+                        <span className="font-mono text-emerald-400/90">${itemCost.toFixed(3)}</span>
+                      )}
+                      <span className={`px-1.5 py-0.5 rounded ${
+                        item.tier === 'budget' 
+                          ? 'bg-emerald-500/20 text-emerald-300' 
+                          : item.tier === 'custom'
+                          ? 'bg-purple-500/20 text-purple-300'
+                          : 'bg-cyan-500/20 text-cyan-300'
+                      }`}>
+                        {item.tier ? (item.tier === 'budget' ? 'Budget' : item.tier === 'custom' ? 'Custom' : 'Pro') : (item.hasVideo ? 'Video' : 'Image')}
+                      </span>
+                    </div>
+                  </div>
+                </button>
+              );
+            })
           )}
         </div>
       </div>
 
       <div className="p-6 bg-slate-950 border-t border-slate-800 text-xs space-y-4">
-        <h3 className="font-bold text-slate-300 uppercase tracking-widest">Session Intelligence</h3>
+        <div className="flex items-center justify-between">
+          <h3 className="font-bold text-slate-300 uppercase tracking-widest">Session Intelligence</h3>
+          {onOpenModelSettings && (
+            <button 
+              onClick={onOpenModelSettings}
+              className="text-[10px] text-cyan-400 hover:text-cyan-300 font-mono uppercase underline decoration-cyan-500/40"
+            >
+              Adjust Tiers
+            </button>
+          )}
+        </div>
         <div className="space-y-2 bg-slate-900/50 p-3 rounded-lg border border-slate-800">
             <div className="flex justify-between text-slate-400">
-            <span>Est. Cost</span>
+            <span>Session Spend</span>
             <span className="text-emerald-400 font-mono font-bold">${totalStats.totalCost.toFixed(4)}</span>
             </div>
+            {nextRunEstimate !== null && (
+              <div className="flex justify-between text-slate-400 border-b border-slate-800/60 pb-1.5 mb-1.5">
+                <span>Next Run Est.</span>
+                <span className="text-cyan-400 font-mono font-bold">${nextRunEstimate.toFixed(4)}</span>
+              </div>
+            )}
             <div className="flex justify-between text-slate-400">
             <span>Input Tokens</span>
             <span className="font-mono">{totalStats.totalInput.toLocaleString()}</span>
@@ -92,6 +141,23 @@ const Sidebar: React.FC<SidebarProps> = ({ history, currentId, onSelect, onClear
             <span className="font-mono">{totalStats.totalOutput.toLocaleString()}</span>
             </div>
         </div>
+
+        {/* Active Tier Chip */}
+        {currentTier && (
+          <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-800 text-[11px] font-mono">
+            <span className="flex items-center gap-2 text-slate-400">
+              <span className={`w-2 h-2 rounded-full ${
+                currentTier === 'budget' ? 'bg-emerald-400' : currentTier === 'custom' ? 'bg-purple-400' : 'bg-cyan-400'
+              }`} />
+              MODEL TIER
+            </span>
+            <span className={`text-[10px] uppercase font-bold tracking-wider ${
+              currentTier === 'budget' ? 'text-emerald-400' : currentTier === 'custom' ? 'text-purple-400' : 'text-cyan-400'
+            }`}>
+              {currentTier === 'budget' ? 'Budget Saver' : currentTier === 'custom' ? 'Custom' : 'Pro Studio'}
+            </span>
+          </div>
+        )}
 
         {/* Subtle Visual Session-Active Indicator */}
         <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-800 text-[11px] font-mono">

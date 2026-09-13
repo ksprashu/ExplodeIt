@@ -1,11 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { GenerationItem, ComponentPart, GenerationStatus } from '../types';
+import { MODEL_REGISTRY } from '../constants';
 
 interface DisplayAreaProps {
   item: GenerationItem | null;
   status: GenerationStatus;
 }
+
+const getModelLabel = (modelId: string | undefined, defaultLabel: string): string => {
+  if (!modelId) return defaultLabel;
+  return MODEL_REGISTRY[modelId]?.displayName || modelId.toUpperCase();
+};
 
 const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status }) => {
   const [modalImage, setModalImage] = useState<string | null>(null);
@@ -79,7 +85,7 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status }) => {
                     className="w-full h-full object-cover"
                 />
                 <div className="absolute top-4 left-4 bg-black/70 backdrop-blur px-3 py-1 rounded-full text-xs font-mono text-cyan-400 border border-cyan-500/30 z-10 pointer-events-none">
-                    VEO 3.1
+                    {getModelLabel(item?.config?.video, 'VEO 3.1').toUpperCase()}
                 </div>
                  <button 
                     onClick={() => setModalVideo(videoUrl)}
@@ -106,7 +112,7 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status }) => {
                     onClick={() => setModalImage(assembledUrl)}
                 />
                 <div className="absolute top-4 left-4 bg-black/70 backdrop-blur px-3 py-1 rounded-full text-xs font-mono text-cyan-400 border border-cyan-500/30 z-10 pointer-events-none">
-                    GEMINI 3 PRO IMAGE
+                    {getModelLabel(item?.config?.assembled, 'GEMINI 3 PRO IMAGE').toUpperCase()}
                 </div>
              </div>
           );
@@ -144,7 +150,7 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status }) => {
                     onClick={() => setModalImage(infographicUrl)}
                 />
                 <div className="absolute top-4 left-4 bg-black/70 backdrop-blur px-3 py-1 rounded-full text-xs font-mono text-purple-400 border border-purple-500/30 z-10 pointer-events-none">
-                     GEMINI 3 PRO IMAGE
+                     {getModelLabel(item?.config?.infographic, 'GEMINI 3 PRO IMAGE').toUpperCase()}
                 </div>
              </div>
           );
@@ -157,7 +163,7 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status }) => {
                  <div className="w-16 h-16 border-4 border-slate-700 border-t-purple-500 rounded-full animate-spin"></div>
                  <div className="flex flex-col items-center gap-1">
                     <span className="font-mono text-sm text-purple-400 font-bold">DRAFTING BLUEPRINT...</span>
-                    <span className="text-xs text-slate-500">Gemini 3 Pro Image</span>
+                    <span className="text-xs text-slate-500">{getModelLabel(item?.config?.infographic, 'Gemini 3 Pro Image')}</span>
                  </div>
             </div>
           );
@@ -260,7 +266,9 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status }) => {
                 
                 <div className="bg-slate-900/50 px-4 py-2 rounded-lg border border-slate-800">
                     <span className="text-slate-400 text-sm">Curated by </span>
-                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-400 font-bold">Gemini 3.1 Pro</span>
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-400 font-bold">
+                        {getModelLabel(item?.config?.planning, 'Gemini 3.1 Pro')}
+                    </span>
                 </div>
             </div>
         </div>
@@ -403,9 +411,10 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status }) => {
              <div className="bg-slate-950 p-6 rounded-2xl border border-slate-900 opacity-60">
                  <div className="text-[10px] text-slate-500 font-mono uppercase tracking-widest mb-4">System Analysis</div>
                  <div className="space-y-2 font-mono text-xs text-slate-600">
-                     <div className="flex justify-between"><span>MODEL</span> <span>GEMINI 3.1 PRO</span></div>
-                     <div className="flex justify-between"><span>RENDER</span> <span>VEO 3.1</span></div>
-                     <div className="flex justify-between"><span>STATUS</span> <span>OPTIMIZED</span></div>
+                     <div className="flex justify-between"><span>PLANNING</span> <span className="text-slate-400">{getModelLabel(item?.config?.planning, 'GEMINI 3.1 PRO').toUpperCase()}</span></div>
+                     <div className="flex justify-between"><span>INFOGRAPHIC</span> <span className="text-slate-400">{getModelLabel(item?.config?.infographic, 'GEMINI 3 PRO IMAGE').toUpperCase()}</span></div>
+                     <div className="flex justify-between"><span>RENDER</span> <span className="text-slate-400">{item?.hasVideo ? getModelLabel(item?.config?.video, 'VEO 3.1').toUpperCase() : 'DISABLED (IMAGE ONLY)'}</span></div>
+                     <div className="flex justify-between"><span>TIER</span> <span className="text-cyan-400 font-bold uppercase">{item?.tier ? (item.tier === 'budget' ? 'BUDGET SAVER' : item.tier === 'custom' ? 'CUSTOM' : 'PRO STUDIO') : 'PRO STUDIO'}</span></div>
                  </div>
              </div>
          </div>

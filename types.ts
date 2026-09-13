@@ -1,5 +1,50 @@
 import { Type } from "@google/genai";
 
+export type ModelTier = 'pro' | 'budget' | 'custom';
+
+export interface StageModelConfig {
+  planning: string;
+  infographic: string;
+  assembled: string;
+  video: string;
+  narration: string;
+  enableVideo: boolean;
+}
+
+export interface ModelPricingEntry {
+  id: string;
+  displayName: string;
+  type: 'token' | 'image' | 'video' | 'tts';
+  rates: {
+    inputPer1kTokens?: number;
+    outputPer1kTokens?: number;
+    perImage?: number;
+    perVideo?: number;
+    per1kChars?: number;
+  };
+  // Convenience aliases for backward compatibility
+  inputPer1kTokens?: number;
+  outputPer1kTokens?: number;
+  perImage?: number;
+  perVideo?: number;
+  per1kChars?: number;
+}
+
+export interface ModelPreset {
+  id: ModelTier;
+  name: string;
+  tagline: string;
+  description: string;
+  badgeColor?: string;
+  config: StageModelConfig;
+  estimatedCost?: number;
+}
+
+export interface UserPreferences {
+  activeTier: ModelTier;
+  customConfig: StageModelConfig;
+}
+
 export enum GenerationStatus {
   IDLE = 'IDLE',
   GENERATING_RANDOM = 'GENERATING_RANDOM',
@@ -71,4 +116,8 @@ export interface GenerationItem {
   hasVideo: boolean;
   
   usage: TokenUsage[];
+
+  // Model Tier & Configuration (Optional)
+  tier?: ModelTier;
+  config?: StageModelConfig;
 }
