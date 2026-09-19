@@ -24,31 +24,180 @@ export const setGlobalApiKey = (key: string) => {
   globalApiKey = key;
 };
 
-const getAI = (): any => {
+export const getAI = (): any => {
   if (!globalApiKey) throw new Error("API Key not configured. Please set your API key.");
   const ai: any = new GoogleGenAI({ apiKey: globalApiKey });
   if (!ai.interactions) {
     ai.interactions = {
       create: async (params: any) => {
         if (typeof ai.models?.generateContent === 'function') {
-          const contents = typeof params.input === 'string' ? params.input : JSON.stringify(params.input);
+          // Normalize input: preserve structured multimodal content if provided as array/object
+          let contents: any;
+          if (typeof params.input === 'string') {
+            contents = params.input;
+          } else if (Array.isArray(params.input)) {
+            contents = params.input.map((part: any) => {
+              if (typeof part === 'string') return { text: part };
+              if (part?.type === 'text' && typeof part.text === 'string') return { text: part.text };
+              if (part?.type === 'image' && (part.data || part.image_bytes || part.imageBytes)) {
+                return {
+                  inlineData: {
+                    data: part.data || part.image_bytes || part.imageBytes,
+                    mimeType: part.mime_type || part.mimeType || 'image/png'
+                  }
+                };
+              }
+              if (part?.type === 'audio' && (part.data || part.audio_bytes || part.audioBytes)) {
+                return {
+                  inlineData: {
+                    data: part.data || part.audio_bytes || part.audioBytes,
+                    mimeType: part.mime_type || part.mimeType || 'audio/mp3'
+                  }
+                };
+              }
+              return part;
+            });
+          } else if (params.input && typeof params.input === 'object') {
+            if (params.input.type === 'text' && typeof params.input.text === 'string') {
+              contents = { text: params.input.text };
+            } else if (params.input.type === 'image' && (params.input.data || params.input.image_bytes || params.input.imageBytes)) {
+              contents = {
+                inlineData: {
+                  data: params.input.data || params.input.image_bytes || params.input.imageBytes,
+                  mimeType: params.input.mime_type || params.input.mimeType || 'image/png'
+                }
+              };
+            } else {
+              contents = JSON.stringify(params.input);
+            }
+          } else {
+            contents = String(params.input ?? '');
+          }
+
+          const genConfig = params.generation_config || params.generationConfig;
+
+          const thinkingLevel = 
+            genConfig?.thinking_level ||
+            genConfig?.thinkingLevel ||
+            genConfig?.thinking_config?.thinking_level ||
+            genConfig?.thinking_config?.thinkingLevel ||
+            genConfig?.thinkingConfig?.thinking_level ||
+            genConfig?.thinkingConfig?.thinkingLevel ||
+            params.thinkingConfig?.thinkingLevel ||
+            params.thinkingConfig?.thinking_level;
+
+          const thinkingBudget =
+            genConfig?.thinking_budget ??
+            genConfig?.thinkingBudget ??
+            genConfig?.thinking_config?.thinking_budget ??
+            genConfig?.thinking_config?.thinkingBudget ??
+            genConfig?.thinkingConfig?.thinking_budget ??
+            genConfig?.thinkingConfig?.thinkingBudget ??
+            params.thinkingConfig?.thinking_budget ??
+            params.thinkingConfig?.thinkingBudget;
+
+          const includeThoughts =
+            genConfig?.include_thoughts ??
+            genConfig?.includeThoughts ??
+            genConfig?.thinking_config?.include_thoughts ??
+            genConfig?.thinking_config?.includeThoughts ??
+            genConfig?.thinkingConfig?.include_thoughts ??
+            genConfig?.thinkingConfig?.includeThoughts ??
+            params.thinkingConfig?.include_thoughts ??
+            params.thinkingConfig?.includeThoughts;
+
+          const rawThinkingConfig = 
+            params.thinkingConfig ||
+            genConfig?.thinkingConfig ||
+            genConfig?.thinking_config;
+
+          let thinkingConfig: Record<string, any> | undefined = rawThinkingConfig ? { ...rawThinkingConfig } : undefined;
+
+          if (thinkingLevel !== undefined || thinkingBudget !== undefined || includeThoughts !== undefined || rawThinkingConfig !== undefined) {
+            thinkingConfig = {
+              ...(rawThinkingConfig || {}),
+              ...(thinkingBudget !== undefined ? { thinkingBudget } : {}),
+              ...(thinkingLevel !== undefined ? { thinkingLevel } : {}),
+              ...(includeThoughts !== undefined ? { includeThoughts } : {}),
+            };
+            // Clean up snake_case aliases to conform strictly to GenAI SDK ThinkingConfig schema
+            delete thinkingConfig.thinking_budget;
+            delete thinkingConfig.thinking_level;
+            delete thinkingConfig.include_thoughts;
+          }
+
+          let tools: any[] | undefined;
+          if (Array.isArray(params.tools)) {
+            tools = params.tools.map((t: any) => {
+              if (t?.type === 'google_search' || t?.google_search || t?.googleSearch) {
+                return { googleSearch: {} };
+              }
+              if (t?.type === 'code_execution' || t?.code_execution || t?.codeExecution) {
+                return { codeExecution: {} };
+              }
+              return t;
+            });
+          }
+
+          const systemInstruction = params.system_instruction || params.systemInstruction;
+          const responseMimeType = params.response_format?.mime_type || params.response_format?.mimeType || params.responseFormat?.mime_type || params.responseFormat?.mimeType;
+          const responseSchema = params.response_format?.schema || params.responseFormat?.schema;
+
           const res = await ai.models.generateContent({
             model: params.model,
             contents,
             config: {
-              responseMimeType: params.response_format?.mime_type,
-              responseSchema: params.response_format?.schema,
-              ...(params.thinkingConfig ? { thinkingConfig: params.thinkingConfig } : {}),
-              ...(params.generation_config?.thinking_level 
-                ? { thinking_level: params.generation_config.thinking_level } 
-                : (params.thinkingConfig?.thinkingLevel ? { thinking_level: params.thinkingConfig.thinkingLevel } : {})),
+              ...(responseMimeType ? { responseMimeType } : {}),
+              ...(responseSchema ? { responseSchema } : {}),
+              ...(tools && tools.length > 0 ? { tools } : {}),
+              ...(systemInstruction ? { systemInstruction } : {}),
+              ...(thinkingConfig ? { thinkingConfig } : {}),
+              ...(thinkingLevel ? { thinking_level: thinkingLevel } : {}),
             }
           });
+
+          const outputText = typeof res.text === 'string' 
+            ? res.text 
+            : (typeof res.text === 'function' 
+                ? res.text() 
+                : (res.candidates?.[0]?.content?.parts?.[0]?.text || ''));
+
+          let outputImage: { data: string; mime_type?: string } | undefined;
+          let outputAudio: { data: string; mime_type?: string } | undefined;
+
+          if (Array.isArray(res.candidates?.[0]?.content?.parts)) {
+            for (const part of res.candidates[0].content.parts) {
+              if (part?.inlineData?.data) {
+                const mime = part.inlineData.mimeType || '';
+                if (mime.startsWith('image/')) {
+                  outputImage = { data: part.inlineData.data, mime_type: mime };
+                } else if (mime.startsWith('audio/')) {
+                  outputAudio = { data: part.inlineData.data, mime_type: mime };
+                }
+              }
+            }
+          }
+
+          const promptTokens = res.usageMetadata?.promptTokenCount || res.usageMetadata?.prompt_token_count || 0;
+          const candidatesTokens = res.usageMetadata?.candidatesTokenCount || res.usageMetadata?.candidates_token_count || 0;
+          const totalTokens = res.usageMetadata?.totalTokenCount || res.usageMetadata?.total_token_count || (promptTokens + candidatesTokens);
+
           return {
-            output_text: res.text || res.candidates?.[0]?.content?.parts?.[0]?.text || '',
-            usage: {
-              prompt_tokens: res.usageMetadata?.promptTokenCount || 0,
-              completion_tokens: res.usageMetadata?.candidatesTokenCount || 0,
+            output_text: outputText,
+            ...(outputImage ? { output_image: outputImage } : {}),
+            ...(outputAudio ? { output_audio: outputAudio } : {}),
+            usage: res.usageMetadata ? {
+              prompt_tokens: promptTokens,
+              completion_tokens: candidatesTokens,
+              total_input_tokens: promptTokens,
+              total_output_tokens: candidatesTokens,
+              total_tokens: totalTokens
+            } : {
+              prompt_tokens: 0,
+              completion_tokens: 0,
+              total_input_tokens: 0,
+              total_output_tokens: 0,
+              total_tokens: 0
             },
             candidates: res.candidates
           };
@@ -213,7 +362,6 @@ export const planObject = async (
             model: model,
             input: PROMPTS.PLAN_OBJECT(itemName),
             tools: [{ type: "google_search" }],
-            thinkingConfig: { thinkingLevel: 'HIGH' },
             generation_config: { thinking_level: 'HIGH' },
             response_format: {
                 type: "text",

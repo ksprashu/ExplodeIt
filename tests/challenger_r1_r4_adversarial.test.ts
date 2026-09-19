@@ -10,10 +10,12 @@ import {
   PlanSchema,
   calculateModelCost
 } from '../constants';
-import { calculateCost, planObject, generateVideo, setGlobalApiKey } from '../services/geminiService';
+import { calculateCost, planObject, generateVideo, setGlobalApiKey, getAI } from '../services/geminiService';
 import { ObjectPlan } from '../types';
 
+let mockInteractionsAvailable = true;
 const mockInteractionsCreate = vi.fn();
+const mockGenerateContent = vi.fn();
 const mockGenerateVideos = vi.fn();
 const mockGetVideosOperation = vi.fn();
 
@@ -25,26 +27,35 @@ vi.mock('@google/genai', () => {
       ARRAY: 'ARRAY',
     },
     GoogleGenAI: class MockGoogleGenAI {
-      constructor(public options: { apiKey: string }) {}
-      interactions = {
-        create: mockInteractionsCreate
-      };
-      models = {
-        generateVideos: mockGenerateVideos,
-        generateImages: vi.fn()
-      };
-      operations = {
-        getVideosOperation: mockGetVideosOperation,
-        get: mockGetVideosOperation
-      };
+      interactions: any;
+      models: any;
+      operations: any;
+      constructor(public options: { apiKey: string }) {
+        if (mockInteractionsAvailable) {
+          this.interactions = {
+            create: mockInteractionsCreate
+          };
+        }
+        this.models = {
+          generateVideos: mockGenerateVideos,
+          generateImages: vi.fn(),
+          generateContent: mockGenerateContent
+        };
+        this.operations = {
+          getVideosOperation: mockGetVideosOperation,
+          get: mockGetVideosOperation
+        };
+      }
     }
   };
 });
 
 describe('Challenger 1: R1 & R4 Adversarial Verification Harness', () => {
   beforeEach(() => {
+    mockInteractionsAvailable = true;
     setGlobalApiKey('AIzaSyTest_ChallengerKey_123');
     mockInteractionsCreate.mockReset();
+    mockGenerateContent.mockReset();
     mockGenerateVideos.mockReset();
     mockGetVideosOperation.mockReset();
     vi.restoreAllMocks();
@@ -78,10 +89,10 @@ describe('Challenger 1: R1 & R4 Adversarial Verification Harness', () => {
   });
 
   // =========================================================================
-  // Dimension 1: Parameter Propagation (planObject & thinkingConfig)
+  // Dimension 1: Parameter Propagation (planObject & generation_config.thinking_level)
   // =========================================================================
   describe('Dimension 1: Parameter Propagation in planObject', () => {
-    it('propagates thinkingConfig: { thinkingLevel: HIGH } by default', async () => {
+    it('propagates generation_config: { thinking_level: HIGH } by default and omits top-level thinkingConfig', async () => {
       mockInteractionsCreate.mockResolvedValueOnce({
         output_text: JSON.stringify(createDummyPlan()),
         usage: { total_input_tokens: 500, total_output_tokens: 1000 }
@@ -91,11 +102,11 @@ describe('Challenger 1: R1 & R4 Adversarial Verification Harness', () => {
 
       expect(mockInteractionsCreate).toHaveBeenCalledTimes(1);
       const callArgs = mockInteractionsCreate.mock.calls[0][0];
-      expect(callArgs.thinkingConfig).toEqual({ thinkingLevel: 'HIGH' });
+      expect(callArgs.thinkingConfig).toBeUndefined();
       expect(callArgs.generation_config).toEqual({ thinking_level: 'HIGH' });
     });
 
-    it('maintains thinkingConfig when stageModelOverride is a string model ID', async () => {
+    it('maintains generation_config.thinking_level and omits thinkingConfig when stageModelOverride is a string model ID', async () => {
       mockInteractionsCreate.mockResolvedValueOnce({
         output_text: JSON.stringify(createDummyPlan()),
         usage: { total_input_tokens: 500, total_output_tokens: 1000 }
@@ -106,11 +117,11 @@ describe('Challenger 1: R1 & R4 Adversarial Verification Harness', () => {
       expect(mockInteractionsCreate).toHaveBeenCalledTimes(1);
       const callArgs = mockInteractionsCreate.mock.calls[0][0];
       expect(callArgs.model).toBe('gemini-3.8-flash');
-      expect(callArgs.thinkingConfig).toEqual({ thinkingLevel: 'HIGH' });
+      expect(callArgs.thinkingConfig).toBeUndefined();
       expect(callArgs.generation_config).toEqual({ thinking_level: 'HIGH' });
     });
 
-    it('maintains thinkingConfig when stageModelOverride is a StageModelConfig object', async () => {
+    it('maintains generation_config.thinking_level and omits thinkingConfig when stageModelOverride is a StageModelConfig object', async () => {
       mockInteractionsCreate.mockResolvedValueOnce({
         output_text: JSON.stringify(createDummyPlan()),
         usage: { total_input_tokens: 500, total_output_tokens: 1000 }
@@ -121,8 +132,271 @@ describe('Challenger 1: R1 & R4 Adversarial Verification Harness', () => {
       expect(mockInteractionsCreate).toHaveBeenCalledTimes(1);
       const callArgs = mockInteractionsCreate.mock.calls[0][0];
       expect(callArgs.model).toBe('custom-model-id');
-      expect(callArgs.thinkingConfig).toEqual({ thinkingLevel: 'HIGH' });
+      expect(callArgs.thinkingConfig).toBeUndefined();
       expect(callArgs.generation_config).toEqual({ thinking_level: 'HIGH' });
+    });
+
+    it('preserves thinking level configuration in models.generateContent fallback polyfill when interactions is undefined', async () => {
+      mockInteractionsAvailable = false;
+      mockGenerateContent.mockResolvedValueOnce({
+        text: JSON.stringify(createDummyPlan()),
+        usageMetadata: { promptTokenCount: 500, candidatesTokenCount: 1000 }
+      });
+
+      const res = await planObject('Mechanical Watch');
+      expect(res.data.displayTitle).toBe('Vintage SLR Camera');
+      expect(mockGenerateContent).toHaveBeenCalledTimes(1);
+      const callArgs = mockGenerateContent.mock.calls[0][0];
+      expect(callArgs.config.thinking_level).toBe('HIGH');
+      expect(callArgs.config.thinkingConfig).toEqual({ thinkingLevel: 'HIGH' });
+    });
+
+    it('maps camelCase generation_config.thinkingLevel to thinkingConfig and thinking_level in fallback polyfill', async () => {
+      mockInteractionsAvailable = false;
+      mockGenerateContent.mockResolvedValueOnce({
+        text: JSON.stringify({ ok: true }),
+        usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 20 }
+      });
+
+      const ai = getAI();
+      await ai.interactions.create({
+        model: 'gemini-3.8-flash',
+        input: 'Test',
+        generation_config: { thinkingLevel: 'LOW' }
+      });
+
+      expect(mockGenerateContent).toHaveBeenCalledTimes(1);
+      const callArgs = mockGenerateContent.mock.calls[0][0];
+      expect(callArgs.config.thinking_level).toBe('LOW');
+      expect(callArgs.config.thinkingConfig).toEqual({ thinkingLevel: 'LOW' });
+    });
+
+    it('preserves nested generation_config.thinkingConfig with thinkingBudget in fallback polyfill', async () => {
+      mockInteractionsAvailable = false;
+      mockGenerateContent.mockResolvedValueOnce({
+        text: JSON.stringify({ ok: true }),
+        usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 20 }
+      });
+
+      const ai = getAI();
+      await ai.interactions.create({
+        model: 'gemini-2.5-flash',
+        input: 'Test',
+        generation_config: { thinkingConfig: { thinkingBudget: 2048 } }
+      });
+
+      expect(mockGenerateContent).toHaveBeenCalledTimes(1);
+      const callArgs = mockGenerateContent.mock.calls[0][0];
+      expect(callArgs.config.thinkingConfig).toEqual({ thinkingBudget: 2048 });
+      expect(callArgs.config.thinking_level).toBeUndefined();
+    });
+
+    it('does not inject thinkingConfig or thinking_level into fallback polyfill when omitted', async () => {
+      mockInteractionsAvailable = false;
+      mockGenerateContent.mockResolvedValueOnce({
+        text: JSON.stringify({ ok: true }),
+        usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 20 }
+      });
+
+      const ai = getAI();
+      await ai.interactions.create({
+        model: 'gemini-3.8-flash',
+        input: 'Test'
+      });
+
+      expect(mockGenerateContent).toHaveBeenCalledTimes(1);
+      const callArgs = mockGenerateContent.mock.calls[0][0];
+      expect(callArgs.config.thinkingConfig).toBeUndefined();
+      expect(callArgs.config.thinking_level).toBeUndefined();
+    });
+
+    it('maps snake_case generation_config.thinking_budget to thinkingConfig in fallback polyfill', async () => {
+      mockInteractionsAvailable = false;
+      mockGenerateContent.mockResolvedValueOnce({
+        text: JSON.stringify({ ok: true }),
+        usageMetadata: { promptTokenCount: 15, candidatesTokenCount: 30 }
+      });
+
+      const ai = getAI();
+      const res = await ai.interactions.create({
+        model: 'gemini-2.5-flash',
+        input: 'Test budget',
+        generation_config: { thinking_budget: 1024 }
+      });
+
+      expect(mockGenerateContent).toHaveBeenCalledTimes(1);
+      const callArgs = mockGenerateContent.mock.calls[0][0];
+      expect(callArgs.config.thinkingConfig).toEqual({ thinkingBudget: 1024 });
+      expect(res.usage.total_input_tokens).toBe(15);
+      expect(res.usage.total_output_tokens).toBe(30);
+      expect(res.usage.total_tokens).toBe(45);
+    });
+
+    it('bridges tools and system_instruction into models.generateContent config in fallback polyfill', async () => {
+      mockInteractionsAvailable = false;
+      mockGenerateContent.mockResolvedValueOnce({
+        text: JSON.stringify({ ok: true }),
+        usageMetadata: { promptTokenCount: 100, candidatesTokenCount: 50 }
+      });
+
+      const ai = getAI();
+      await ai.interactions.create({
+        model: 'gemini-3.8-flash',
+        input: 'Search request',
+        tools: [{ type: 'google_search' }],
+        system_instruction: 'You are an engineer'
+      });
+
+      expect(mockGenerateContent).toHaveBeenCalledTimes(1);
+      const callArgs = mockGenerateContent.mock.calls[0][0];
+      expect(callArgs.config.tools).toEqual([{ googleSearch: {} }]);
+      expect(callArgs.config.systemInstruction).toBe('You are an engineer');
+    });
+
+    it('supports camelCase generationConfig with thinkingLevel and thinkingBudget in fallback polyfill', async () => {
+      mockInteractionsAvailable = false;
+      mockGenerateContent.mockResolvedValueOnce({
+        text: JSON.stringify({ ok: true }),
+        usageMetadata: { promptTokenCount: 25, candidatesTokenCount: 50, totalTokenCount: 75 }
+      });
+
+      const ai = getAI();
+      const res = await ai.interactions.create({
+        model: 'gemini-2.5-flash',
+        input: 'Test camelCase generationConfig',
+        generationConfig: {
+          thinkingLevel: 'HIGH',
+          thinkingBudget: 4096
+        }
+      });
+
+      expect(mockGenerateContent).toHaveBeenCalledTimes(1);
+      const callArgs = mockGenerateContent.mock.calls[0][0];
+      expect(callArgs.config.thinking_level).toBe('HIGH');
+      expect(callArgs.config.thinkingConfig).toEqual({
+        thinkingLevel: 'HIGH',
+        thinkingBudget: 4096
+      });
+      expect(res.usage.total_tokens).toBe(75);
+    });
+
+    it('sanitizes thinkingConfig to strip illegal snake_case keys (thinking_budget, thinking_level, include_thoughts)', async () => {
+      mockInteractionsAvailable = false;
+      mockGenerateContent.mockResolvedValueOnce({
+        text: JSON.stringify({ ok: true }),
+        usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 20 }
+      });
+
+      const ai = getAI();
+      await ai.interactions.create({
+        model: 'gemini-2.5-flash',
+        input: 'Test sanitization',
+        generation_config: {
+          thinking_config: {
+            thinking_budget: 1024,
+            thinking_level: 'LOW',
+            include_thoughts: true
+          }
+        }
+      });
+
+      expect(mockGenerateContent).toHaveBeenCalledTimes(1);
+      const callArgs = mockGenerateContent.mock.calls[0][0];
+      expect(callArgs.config.thinkingConfig).toEqual({
+        thinkingBudget: 1024,
+        thinkingLevel: 'LOW',
+        includeThoughts: true
+      });
+      // Verify snake_case keys are strictly absent from thinkingConfig
+      expect(callArgs.config.thinkingConfig.thinking_budget).toBeUndefined();
+      expect(callArgs.config.thinkingConfig.thinking_level).toBeUndefined();
+      expect(callArgs.config.thinkingConfig.include_thoughts).toBeUndefined();
+    });
+
+    it('preserves thinking_budget: 0 (disabled thinking) without dropping it or converting to undefined', async () => {
+      mockInteractionsAvailable = false;
+      mockGenerateContent.mockResolvedValueOnce({
+        text: JSON.stringify({ ok: true }),
+        usageMetadata: { promptTokenCount: 12, candidatesTokenCount: 24 }
+      });
+
+      const ai = getAI();
+      await ai.interactions.create({
+        model: 'gemini-2.5-flash',
+        input: 'Test budget 0',
+        generation_config: { thinking_budget: 0 }
+      });
+
+      expect(mockGenerateContent).toHaveBeenCalledTimes(1);
+      const callArgs = mockGenerateContent.mock.calls[0][0];
+      expect(callArgs.config.thinkingConfig).toEqual({ thinkingBudget: 0 });
+    });
+
+    it('bridges multimodal input parts (text and image) to SDK contents in fallback polyfill', async () => {
+      mockInteractionsAvailable = false;
+      mockGenerateContent.mockResolvedValueOnce({
+        candidates: [{
+          content: {
+            parts: [{
+              inlineData: { data: 'generatedImageBase64', mimeType: 'image/png' }
+            }]
+          }
+        }],
+        usageMetadata: { promptTokenCount: 120, candidatesTokenCount: 300 }
+      });
+
+      const ai = getAI();
+      const res = await ai.interactions.create({
+        model: 'gemini-3-pro-image',
+        input: [
+          { type: 'text', text: 'Assemble camera' },
+          { type: 'image', data: 'inputBase64Data', mime_type: 'image/png' }
+        ],
+        response_format: {
+          type: 'image',
+          mimeType: 'image/png'
+        }
+      });
+
+      expect(mockGenerateContent).toHaveBeenCalledTimes(1);
+      const callArgs = mockGenerateContent.mock.calls[0][0];
+      expect(callArgs.contents).toEqual([
+        { text: 'Assemble camera' },
+        { inlineData: { data: 'inputBase64Data', mimeType: 'image/png' } }
+      ]);
+      expect(callArgs.config.responseMimeType).toBe('image/png');
+      expect(res.output_image).toEqual({
+        data: 'generatedImageBase64',
+        mime_type: 'image/png'
+      });
+    });
+
+    it('correctly executes res.text as a function and extracts audio in fallback polyfill', async () => {
+      mockInteractionsAvailable = false;
+      mockGenerateContent.mockResolvedValueOnce({
+        text: () => 'Dynamic function text output',
+        candidates: [{
+          content: {
+            parts: [{
+              inlineData: { data: 'audioBase64Data', mimeType: 'audio/mp3' }
+            }]
+          }
+        }],
+        usageMetadata: { promptTokenCount: 15, candidatesTokenCount: 45 }
+      });
+
+      const ai = getAI();
+      const res = await ai.interactions.create({
+        model: 'gemini-3.1-flash-tts-preview',
+        input: 'Speak this text',
+        response_format: { type: 'audio' }
+      });
+
+      expect(res.output_text).toBe('Dynamic function text output');
+      expect(res.output_audio).toEqual({
+        data: 'audioBase64Data',
+        mime_type: 'audio/mp3'
+      });
     });
   });
 

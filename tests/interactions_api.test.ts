@@ -14,7 +14,9 @@ import {
 } from '../constants';
 import { ObjectPlan } from '../types';
 
+let mockInteractionsAvailable = true;
 const mockInteractionsCreate = vi.fn();
+const mockGenerateContent = vi.fn();
 const mockGenerateVideos = vi.fn();
 const mockGetVideosOperation = vi.fn();
 const mockGetOperation = vi.fn();
@@ -27,24 +29,32 @@ vi.mock('@google/genai', () => {
       ARRAY: 'ARRAY',
     },
     GoogleGenAI: class MockGoogleGenAI {
-      constructor(public options: { apiKey: string }) {}
-      interactions = {
-        create: mockInteractionsCreate
-      };
-      models = {
-        generateVideos: mockGenerateVideos,
-        generateImages: vi.fn()
-      };
-      operations = {
-        getVideosOperation: mockGetVideosOperation,
-        get: mockGetOperation
-      };
+      interactions: any;
+      models: any;
+      operations: any;
+      constructor(public options: { apiKey: string }) {
+        if (mockInteractionsAvailable) {
+          this.interactions = {
+            create: mockInteractionsCreate
+          };
+        }
+        this.models = {
+          generateVideos: mockGenerateVideos,
+          generateImages: vi.fn(),
+          generateContent: mockGenerateContent
+        };
+        this.operations = {
+          getVideosOperation: mockGetVideosOperation,
+          get: mockGetOperation
+        };
+      }
     }
   };
 });
 
 import { 
   setGlobalApiKey, 
+  getAI,
   getRandomObject, 
   planObject, 
   enrichComponentDetails, 
@@ -56,8 +66,10 @@ import {
 
 describe('Gemini Interactions API v2.3+ Integration Suite', () => {
   beforeEach(() => {
+    mockInteractionsAvailable = true;
     setGlobalApiKey('AIzaSyTestInteractionsKey_123');
     mockInteractionsCreate.mockReset();
+    mockGenerateContent.mockReset();
     mockGenerateVideos.mockReset();
     mockGetVideosOperation.mockReset();
     mockGetOperation.mockReset();
@@ -119,6 +131,25 @@ describe('Gemini Interactions API v2.3+ Integration Suite', () => {
       expect(callArgs.config?.temperature).toBeUndefined();
     });
 
+    it('getRandomObject: fallback polyfill routes to models.generateContent without thinking parameters', async () => {
+      mockInteractionsAvailable = false;
+      mockGenerateContent.mockResolvedValueOnce({
+        text: 'Vintage Microscope',
+        usageMetadata: {
+          promptTokenCount: 50,
+          candidatesTokenCount: 15
+        }
+      });
+
+      const res = await getRandomObject();
+      expect(res.name).toBe('Vintage Microscope');
+      expect(mockGenerateContent).toHaveBeenCalledTimes(1);
+      const genArgs = mockGenerateContent.mock.calls[0][0];
+      expect(genArgs.model).toBe(MODEL_SURPRISE);
+      expect(genArgs.config.thinkingConfig).toBeUndefined();
+      expect(genArgs.config.thinking_level).toBeUndefined();
+    });
+
     it('planObject: invokes interactions.create with search tools and structured response_format', async () => {
       const mockPlan = createDummyPlan();
 
@@ -140,13 +171,62 @@ describe('Gemini Interactions API v2.3+ Integration Suite', () => {
       const callArgs = mockInteractionsCreate.mock.calls[0][0];
       expect(callArgs.model).toBe(MODEL_PLANNING);
       expect(callArgs.tools).toEqual([{ type: 'google_search' }]);
-      expect(callArgs.thinkingConfig).toEqual({ thinkingLevel: 'HIGH' });
+      expect(callArgs.thinkingConfig).toBeUndefined();
       expect(callArgs.generation_config).toEqual({ thinking_level: 'HIGH' });
       expect(callArgs.response_format).toEqual({
         type: 'text',
         mime_type: 'application/json',
         schema: PlanSchema
       });
+    });
+
+    it('planObject: fallback polyfill routes to models.generateContent preserving thinking level configuration when interactions is unavailable', async () => {
+      mockInteractionsAvailable = false;
+      const mockPlan = createDummyPlan();
+
+      mockGenerateContent.mockResolvedValueOnce({
+        text: JSON.stringify(mockPlan),
+        usageMetadata: {
+          promptTokenCount: 520,
+          candidatesTokenCount: 980
+        }
+      });
+
+      const res = await planObject('Vintage SLR Camera');
+      expect(res.data.displayTitle).toBe('Vintage SLR Camera');
+      expect(res.data.componentList).toHaveLength(3);
+      expect(res.usage.model).toBe(MODEL_PLANNING);
+      expect(res.usage.inputTokens).toBe(520);
+      expect(res.usage.outputTokens).toBe(980);
+
+      expect(mockGenerateContent).toHaveBeenCalledTimes(1);
+      const genArgs = mockGenerateContent.mock.calls[0][0];
+      expect(genArgs.model).toBe(MODEL_PLANNING);
+      expect(genArgs.config.responseMimeType).toBe('application/json');
+      expect(genArgs.config.responseSchema).toEqual(PlanSchema);
+      expect(genArgs.config.thinking_level).toBe('HIGH');
+      expect(genArgs.config.thinkingConfig).toEqual({ thinkingLevel: 'HIGH' });
+    });
+
+    it('fallback polyfill gracefully maps legacy top-level thinkingConfig to config.thinkingConfig', async () => {
+      mockInteractionsAvailable = false;
+      mockGenerateContent.mockResolvedValueOnce({
+        text: 'Legacy test response',
+        usageMetadata: { promptTokenCount: 20, candidatesTokenCount: 40 }
+      });
+
+      const ai = getAI();
+      const res = await ai.interactions.create({
+        model: 'gemini-3.1-pro-preview',
+        input: 'Test legacy thinkingConfig',
+        thinkingConfig: { thinkingLevel: 'HIGH' }
+      });
+
+      expect(res.output_text).toBe('Legacy test response');
+      expect(mockGenerateContent).toHaveBeenCalledTimes(1);
+      const genArgs = mockGenerateContent.mock.calls[0][0];
+      expect(genArgs.config.thinkingConfig).toEqual({ thinkingLevel: 'HIGH' });
+      expect(genArgs.config.thinking_level).toBe('HIGH');
     });
 
     it('enrichComponentDetails: queries interactions.create and parses url_citation annotations', async () => {

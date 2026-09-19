@@ -185,6 +185,8 @@ export const CommunityShowcase: React.FC<CommunityShowcaseProps> = ({
   // 2. Filter & Search State
   const [selectedCategory, setSelectedCategory] = useState<ShowcaseCategory>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [viewMode, setViewMode] = useState<'grid' | 'collapsible'>('grid');
+  const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
 
   // 3. Hero Carousel State
   const [activeSlide, setActiveSlide] = useState<number>(0);
@@ -330,6 +332,141 @@ export const CommunityShowcase: React.FC<CommunityShowcaseProps> = ({
       e.preventDefault();
       advanceSlide();
     }
+  };
+
+  const toggleAllCollapsible = () => {
+    const domainCats = SHOWCASE_CATEGORIES.filter(c => c !== 'All');
+    const allAreCollapsed = domainCats.every(c => Boolean(collapsedCategories[c]));
+    if (allAreCollapsed) {
+      setCollapsedCategories({});
+    } else {
+      const next: Record<string, boolean> = {};
+      domainCats.forEach(c => {
+        next[c] = true;
+      });
+      setCollapsedCategories(next);
+    }
+  };
+
+  const renderTopicCard = (item: CommunityCatalogItem) => {
+    const category = resolveItemCategory(item);
+    const tier = resolveItemModelTier(item);
+    const categoryClasses = getCategoryBadgeClasses(category);
+    const componentCount = resolveComponentCount(item);
+
+    return (
+      <article
+        key={item.id}
+        onClick={() => onSelectTopic(item)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onSelectTopic(item);
+          }
+        }}
+        tabIndex={0}
+        role="button"
+        aria-label={`Explore ${item.topic}, ${category}, ${componentCount} components`}
+        className={`group relative bg-slate-900/70 hover:bg-slate-900 border border-slate-800/90 rounded-2xl overflow-hidden shadow-lg transition-all duration-300 hover:-translate-y-1 cursor-pointer focus:outline-none focus:ring-2 focus:ring-cyan-500 flex flex-col ${categoryClasses.glow}`}
+      >
+        {/* Card Thumbnail Area */}
+        <div className="relative aspect-[16/10] overflow-hidden bg-slate-950">
+          <img
+            src={item.previewUrl || item.infographicUrl}
+            alt={item.topic}
+            loading="lazy"
+            className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
+            onError={(e) => {
+              // Graceful fallback to styled blueprint canvas
+              e.currentTarget.style.display = 'none';
+            }}
+          />
+
+          {/* Gradient Overlay for Readable Badges */}
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-slate-950/40" />
+
+          {/* Top Badges: Domain & Tier */}
+          <div className="absolute top-3 left-3 right-3 flex items-center justify-between gap-2 z-10">
+            <span
+              className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider border backdrop-blur-md ${categoryClasses.badge}`}
+            >
+              {category}
+            </span>
+
+            <span
+              className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider backdrop-blur-md ${
+                tier === 'Pro Studio'
+                  ? 'bg-amber-950/80 text-amber-300 border border-amber-500/40'
+                  : 'bg-emerald-950/80 text-emerald-300 border border-emerald-500/40'
+              }`}
+            >
+              {tier}
+            </span>
+          </div>
+
+          {/* Hover Explore Quick Prompt Overlay */}
+          <div className="absolute inset-0 bg-cyan-950/40 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+            <span className="px-4 py-2 rounded-xl bg-cyan-500 text-slate-950 font-bold text-xs shadow-lg shadow-cyan-500/30 flex items-center gap-1.5 transform translate-y-2 group-hover:translate-y-0 transition-transform duration-300">
+              <span>Explore Deconstruction</span>
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+              </svg>
+            </span>
+          </div>
+        </div>
+
+        {/* Card Content Area */}
+        <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
+          <div className="space-y-1.5">
+            <h4 className="text-base sm:text-lg font-bold text-slate-100 group-hover:text-cyan-300 transition-colors line-clamp-1">
+              {item.topic}
+            </h4>
+            <p className="text-xs text-slate-400 line-clamp-1 flex items-center gap-1.5 font-light">
+              <span className="text-cyan-400">✦</span>
+              <span>{item.metaphor}</span>
+            </p>
+          </div>
+
+          {/* Metadata & Media Feature Indicators */}
+          <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400 font-mono">
+            {/* Component Count Indicator */}
+            <span className="flex items-center gap-1.5 text-slate-300">
+              <svg className="w-3.5 h-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              </svg>
+              <span>{componentCount} parts</span>
+            </span>
+
+            {/* Media Capabilities Badges */}
+            <div className="flex items-center gap-2">
+              {item.videoUrl && (
+                <span
+                  className="text-[10px] px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 flex items-center gap-1"
+                  title="Includes cinematic Veo assembly video"
+                >
+                  <svg className="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                  Video
+                </span>
+              )}
+
+              {item.audioUrl && (
+                <span
+                  className="text-[10px] px-2 py-0.5 rounded bg-purple-500/10 text-purple-300 border border-purple-500/30 flex items-center gap-1"
+                  title="Includes narrated audio tour"
+                >
+                  <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.536 8.464a5 5 0 010 7.072M18.364 5.636a9 9 0 010 12.728M11 5L6 9H2v6h4l5 4V5z" />
+                  </svg>
+                  Audio
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      </article>
+    );
   };
 
   return (
@@ -731,164 +868,158 @@ export const CommunityShowcase: React.FC<CommunityShowcaseProps> = ({
             })}
           </div>
 
-          {/* Live Search Input */}
-          <div className="relative w-full lg:w-80">
-            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
+          {/* Search Input + View Mode Switcher */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full lg:w-auto">
+            {/* Live Search Input */}
+            <div className="relative flex-1 sm:w-72">
+              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search by title, domain, metaphor..."
+                aria-label="Search community topics"
+                className="w-full bg-slate-900/90 border border-slate-800 hover:border-slate-700 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/50 rounded-xl pl-10 pr-9 py-2.5 text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:outline-none transition-all shadow-inner"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  aria-label="Clear search query"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-500 hover:text-slate-200 cursor-pointer"
+                >
+                  ✕
+                </button>
+              )}
             </div>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by title, domain, metaphor..."
-              aria-label="Search community topics"
-              className="w-full bg-slate-900/90 border border-slate-800 hover:border-slate-700 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/50 rounded-xl pl-10 pr-9 py-2.5 text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:outline-none transition-all shadow-inner"
-            />
-            {searchQuery && (
+
+            {/* View Mode Toggle Switcher */}
+            <div className="flex items-center bg-slate-900/90 border border-slate-800 p-1 rounded-xl shrink-0 self-end sm:self-auto" role="group" aria-label="Catalog view mode">
               <button
                 type="button"
-                onClick={() => setSearchQuery('')}
-                aria-label="Clear search query"
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-500 hover:text-slate-200 cursor-pointer"
+                onClick={() => setViewMode('grid')}
+                aria-label="Grid view"
+                aria-pressed={viewMode === 'grid'}
+                title="Card Grid View"
+                className={`p-2 sm:px-3 sm:py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer ${
+                  viewMode === 'grid'
+                    ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-sm ring-1 ring-cyan-400'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
               >
-                ✕
+                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M4 4h7v7H4V4zm0 9h7v7H4v-7zm9-9h7v7h-7V4zm0 9h7v7h-7v-7z" />
+                </svg>
+                <span className="hidden sm:inline">Grid</span>
               </button>
-            )}
+              <button
+                type="button"
+                onClick={() => setViewMode('collapsible')}
+                aria-label="Collapsible category view"
+                aria-pressed={viewMode === 'collapsible'}
+                title="Collapsible Category Viewer"
+                className={`p-2 sm:px-3 sm:py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer ${
+                  viewMode === 'collapsible'
+                    ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-sm ring-1 ring-cyan-400'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+                <span className="hidden sm:inline">By Category</span>
+              </button>
+            </div>
           </div>
         </div>
       </section>
 
       {/* ================================================================== */}
-      {/* SECTION 3: TOPIC CARD GRID */}
+      {/* SECTION 3: TOPIC CARD GRID / COLLAPSIBLE CATEGORY VIEWER           */}
       {/* ================================================================== */}
       <section aria-label="Topic Card Gallery">
         {isLoading ? (
           <CardGridSkeleton count={6} />
         ) : filteredItems.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredItems.map((item) => {
-              const category = resolveItemCategory(item);
-              const tier = resolveItemModelTier(item);
-              const categoryClasses = getCategoryBadgeClasses(category);
-              const componentCount = resolveComponentCount(item);
-
-              return (
-                <article
-                  key={item.id}
-                  onClick={() => onSelectTopic(item)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      onSelectTopic(item);
-                    }
-                  }}
-                  tabIndex={0}
-                  role="button"
-                  aria-label={`Explore ${item.topic}, ${category}, ${componentCount} components`}
-                  className={`group relative bg-slate-900/70 hover:bg-slate-900 border border-slate-800/90 rounded-2xl overflow-hidden shadow-lg transition-all duration-300 hover:-translate-y-1 cursor-pointer focus:outline-none focus:ring-2 focus:ring-cyan-500 flex flex-col ${categoryClasses.glow}`}
+          viewMode === 'grid' ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredItems.map((item) => renderTopicCard(item))}
+            </div>
+          ) : (
+            /* Collapsible Category Mode */
+            <div className="space-y-6">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                <span className="text-xs font-mono text-slate-400">
+                  Categorized Deconstructions ({filteredItems.length} topics)
+                </span>
+                <button
+                  type="button"
+                  onClick={toggleAllCollapsible}
+                  className="text-xs font-mono text-cyan-400 hover:text-cyan-300 transition-colors uppercase tracking-wider cursor-pointer"
                 >
-                  {/* Card Thumbnail Area */}
-                  <div className="relative aspect-[16/10] overflow-hidden bg-slate-950">
-                    <img
-                      src={item.previewUrl || item.infographicUrl}
-                      alt={item.topic}
-                      loading="lazy"
-                      className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
-                      onError={(e) => {
-                        // Graceful fallback to styled blueprint canvas
-                        e.currentTarget.style.display = 'none';
-                      }}
-                    />
+                  Toggle All Categories
+                </button>
+              </div>
 
-                    {/* Gradient Overlay for Readable Badges */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-slate-950/40" />
+              {SHOWCASE_CATEGORIES.filter((c) => c !== 'All').map((cat) => {
+                const catItems = filteredItems.filter((item) => resolveItemCategory(item) === cat);
+                if (catItems.length === 0) return null;
+                const isCollapsed = Boolean(collapsedCategories[cat]);
+                const catClasses = getCategoryBadgeClasses(cat);
 
-                    {/* Top Badges: Domain & Tier */}
-                    <div className="absolute top-3 left-3 right-3 flex items-center justify-between gap-2 z-10">
-                      <span
-                        className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider border backdrop-blur-md ${categoryClasses.badge}`}
-                      >
-                        {category}
-                      </span>
-
-                      <span
-                        className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider backdrop-blur-md ${
-                          tier === 'Pro Studio'
-                            ? 'bg-amber-950/80 text-amber-300 border border-amber-500/40'
-                            : 'bg-emerald-950/80 text-emerald-300 border border-emerald-500/40'
-                        }`}
-                      >
-                        {tier}
-                      </span>
-                    </div>
-
-                    {/* Hover Explore Quick Prompt Overlay */}
-                    <div className="absolute inset-0 bg-cyan-950/40 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                      <span className="px-4 py-2 rounded-xl bg-cyan-500 text-slate-950 font-bold text-xs shadow-lg shadow-cyan-500/30 flex items-center gap-1.5 transform translate-y-2 group-hover:translate-y-0 transition-transform duration-300">
-                        <span>Explore Deconstruction</span>
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                        </svg>
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Card Content Area */}
-                  <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
-                    <div className="space-y-1.5">
-                      <h4 className="text-base sm:text-lg font-bold text-slate-100 group-hover:text-cyan-300 transition-colors line-clamp-1">
-                        {item.topic}
-                      </h4>
-                      <p className="text-xs text-slate-400 line-clamp-1 flex items-center gap-1.5 font-light">
-                        <span className="text-cyan-400">✦</span>
-                        <span>{item.metaphor}</span>
-                      </p>
-                    </div>
-
-                    {/* Metadata & Media Feature Indicators */}
-                    <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400 font-mono">
-                      {/* Component Count Indicator */}
-                      <span className="flex items-center gap-1.5 text-slate-300">
-                        <svg className="w-3.5 h-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                        </svg>
-                        <span>{componentCount} parts</span>
-                      </span>
-
-                      {/* Media Capabilities Badges */}
-                      <div className="flex items-center gap-2">
-                        {item.videoUrl && (
-                          <span
-                            className="text-[10px] px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 flex items-center gap-1"
-                            title="Includes cinematic Veo assembly video"
-                          >
-                            <svg className="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M8 5v14l11-7z" />
-                            </svg>
-                            Video
-                          </span>
-                        )}
-
-                        {item.audioUrl && (
-                          <span
-                            className="text-[10px] px-2 py-0.5 rounded bg-purple-500/10 text-purple-300 border border-purple-500/30 flex items-center gap-1"
-                            title="Includes narrated audio tour"
-                          >
-                            <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M15.536 8.464a5 5 0 010 7.072M18.364 5.636a9 9 0 010 12.728M11 5L6 9H2v6h4l5 4V5z" />
-                            </svg>
-                            Audio
-                          </span>
-                        )}
+                return (
+                  <div key={cat} className="rounded-2xl border border-slate-800 bg-slate-900/40 overflow-hidden shadow-lg">
+                    {/* Category Accordion Header */}
+                    <button
+                      type="button"
+                      onClick={() => setCollapsedCategories((prev) => ({ ...prev, [cat]: !prev[cat] }))}
+                      aria-expanded={!isCollapsed}
+                      aria-label={`${cat} category, ${catItems.length} topics`}
+                      className="w-full flex items-center justify-between p-4 sm:p-5 bg-slate-900/90 hover:bg-slate-850 transition-colors cursor-pointer text-left"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className={`w-2.5 h-2.5 rounded-full ${catClasses.indicator}`} />
+                        <h4 className="text-base sm:text-lg font-bold text-white tracking-tight">
+                          {cat}
+                        </h4>
+                        <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
+                          {catItems.length} {catItems.length === 1 ? 'topic' : 'topics'}
+                        </span>
                       </div>
-                    </div>
+                      <div className="flex items-center gap-2 text-slate-400">
+                        <span className="text-xs font-mono hidden sm:inline">
+                          {isCollapsed ? 'Expand' : 'Collapse'}
+                        </span>
+                        <svg
+                          className={`w-4 h-4 transition-transform duration-200 ${
+                            isCollapsed ? '-rotate-90' : 'rotate-0'
+                          }`}
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={2}
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
+                    </button>
+
+                    {!isCollapsed && (
+                      <div className="p-4 sm:p-6 border-t border-slate-800/80 bg-slate-950/40">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                          {catItems.map((item) => renderTopicCard(item))}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </article>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )
         ) : (
           /* Empty State */
           <div className="rounded-3xl border border-dashed border-slate-800 bg-slate-900/40 p-12 text-center space-y-4 max-w-lg mx-auto">

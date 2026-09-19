@@ -1,6 +1,13 @@
-import React, { useMemo } from 'react';
-import { GenerationItem, ModelTier, StageModelConfig } from '../types';
+import React, { useMemo, useState } from 'react';
+import { GenerationItem, ModelTier, StageModelConfig, CommunityCatalogItem } from '../types';
 import { estimateRunCost } from '../constants';
+import { 
+  resolveItemCategory, 
+  ShowcaseCategory, 
+  getCategoryBadgeClasses,
+  resolveItemModelTier,
+  resolveComponentCount
+} from './CommunityShowcase';
 
 interface SidebarProps {
   history: GenerationItem[];
@@ -12,6 +19,8 @@ interface SidebarProps {
   currentTier?: ModelTier;
   currentConfig?: StageModelConfig;
   onOpenModelSettings?: () => void;
+  catalogItems?: CommunityCatalogItem[];
+  onSelectCatalogItem?: (item: CommunityCatalogItem) => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ 
@@ -24,7 +33,53 @@ const Sidebar: React.FC<SidebarProps> = ({
   currentTier,
   currentConfig,
   onOpenModelSettings,
+  catalogItems,
+  onSelectCatalogItem,
 }) => {
+  const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
+
+  const domainCategories: ShowcaseCategory[] = ['Mechanical', 'Anatomy', 'Electronics', 'Science', 'Everyday'];
+
+  const categorizedCatalog = useMemo(() => {
+    if (!catalogItems || catalogItems.length === 0) return {};
+    const groups: Partial<Record<ShowcaseCategory, CommunityCatalogItem[]>> = {};
+    catalogItems.forEach(item => {
+      const cat = resolveItemCategory(item);
+      if (!groups[cat]) {
+        groups[cat] = [];
+      }
+      groups[cat]!.push(item);
+    });
+    return groups;
+  }, [catalogItems]);
+
+  const activeCategories = useMemo(() => {
+    return domainCategories.filter(cat => (categorizedCatalog[cat]?.length || 0) > 0);
+  }, [categorizedCatalog]);
+
+  const allCollapsed = useMemo(() => {
+    if (activeCategories.length === 0) return false;
+    return activeCategories.every(cat => Boolean(collapsedCategories[cat]));
+  }, [activeCategories, collapsedCategories]);
+
+  const toggleCategory = (cat: string) => {
+    setCollapsedCategories(prev => ({
+      ...prev,
+      [cat]: !prev[cat]
+    }));
+  };
+
+  const toggleAllCategories = () => {
+    if (allCollapsed) {
+      setCollapsedCategories({});
+    } else {
+      const all: Record<string, boolean> = {};
+      activeCategories.forEach(cat => {
+        all[cat] = true;
+      });
+      setCollapsedCategories(all);
+    }
+  };
   
   const totalStats = useMemo(() => {
     return history.reduce((acc, item) => {
@@ -63,11 +118,22 @@ const Sidebar: React.FC<SidebarProps> = ({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-4 space-y-5">
+        {/* ========================================================== */}
+        {/* SECTION 1: RECENT EXPLORATIONS (CURRENT TAB SESSION ONLY)  */}
+        {/* ========================================================== */}
         <div className="space-y-2">
-          <h2 className="text-xs font-bold text-slate-500 uppercase tracking-widest px-2">Recent Explorations</h2>
+          <div className="flex items-center justify-between px-2">
+            <h2 className="text-xs font-bold text-slate-500 uppercase tracking-widest">Recent Explorations</h2>
+            {history.length > 0 && (
+              <span className="text-[10px] font-mono text-cyan-400 bg-cyan-950/60 border border-cyan-500/30 px-1.5 py-0.2 rounded-full">
+                {history.length}
+              </span>
+            )}
+          </div>
+
           {history.length === 0 ? (
-            <div className="p-4 rounded-lg bg-slate-900/50 border border-slate-800 border-dashed text-center">
+            <div className="p-3.5 rounded-xl bg-slate-900/50 border border-slate-800 border-dashed text-center">
                 <p className="text-slate-600 text-sm">No items yet.</p>
                 <p className="text-slate-700 text-xs mt-1">Start by typing above!</p>
             </div>
@@ -78,9 +144,9 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <button
                   key={item.id}
                   onClick={() => onSelect(item)}
-                  className={`w-full text-left p-4 rounded-xl transition-all duration-200 border group ${
+                  className={`w-full text-left p-3.5 rounded-xl transition-all duration-200 border group cursor-pointer ${
                     currentId === item.id 
-                    ? 'bg-slate-800 border-cyan-500/50 text-cyan-50 shadow-md' 
+                    ? 'bg-slate-800 border-cyan-500/50 text-cyan-50 shadow-md ring-1 ring-cyan-500/30' 
                     : 'bg-slate-900/30 border-slate-800 text-slate-400 hover:bg-slate-800 hover:text-slate-200'
                   }`}
                 >
@@ -107,6 +173,132 @@ const Sidebar: React.FC<SidebarProps> = ({
             })
           )}
         </div>
+
+        {/* ==================================================================== */}
+        {/* SECTION 2: COMMUNITY EXPLORATIONS (COLLAPSIBLE VIEWER BY CATEGORY)    */}
+        {/* ==================================================================== */}
+        {catalogItems && catalogItems.length > 0 && (
+          <div className="space-y-3 pt-3 border-t border-slate-800/80">
+            <div className="flex items-center justify-between px-2">
+              <div>
+                <h2 className="text-xs font-bold text-slate-300 uppercase tracking-widest flex items-center gap-1.5">
+                  <svg className="w-3.5 h-3.5 text-cyan-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                  </svg>
+                  <span>Community Explorations</span>
+                </h2>
+                <p className="text-[10px] text-slate-500 mt-0.5">Explore by category</p>
+              </div>
+              {activeCategories.length > 0 && (
+                <button
+                  type="button"
+                  onClick={toggleAllCategories}
+                  className="text-[10px] font-mono text-cyan-400 hover:text-cyan-300 transition-colors uppercase tracking-wider cursor-pointer"
+                >
+                  {allCollapsed ? 'Expand All' : 'Collapse All'}
+                </button>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              {activeCategories.map((cat) => {
+                const catItems = categorizedCatalog[cat] || [];
+                const isCollapsed = Boolean(collapsedCategories[cat]);
+                const badgeClasses = getCategoryBadgeClasses(cat);
+
+                return (
+                  <div key={cat} className="rounded-xl border border-slate-800/80 bg-slate-950/40 overflow-hidden">
+                    {/* Category Accordion Header */}
+                    <button
+                      type="button"
+                      onClick={() => toggleCategory(cat)}
+                      aria-expanded={!isCollapsed}
+                      aria-label={`${cat} category, ${catItems.length} explorations, ${isCollapsed ? 'collapsed' : 'expanded'}`}
+                      className="w-full flex items-center justify-between p-2.5 hover:bg-slate-850/60 transition-colors text-left group cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className={`w-2 h-2 rounded-full ${badgeClasses.indicator}`} />
+                        <span className="text-xs font-bold text-slate-200 group-hover:text-white tracking-wide">
+                          {cat}
+                        </span>
+                        <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-slate-800 text-slate-400 border border-slate-700/60">
+                          {catItems.length}
+                        </span>
+                      </div>
+                      <svg
+                        className={`w-3.5 h-3.5 text-slate-500 group-hover:text-slate-300 transition-transform duration-200 ${
+                          isCollapsed ? '-rotate-90' : 'rotate-0'
+                        }`}
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+
+                    {/* Category Explorations List */}
+                    {!isCollapsed && (
+                      <div className="p-2 pt-0 space-y-1.5 border-t border-slate-800/40 mt-1">
+                        {catItems.map((item) => {
+                          const isSelected = currentId === item.id;
+                          const tier = resolveItemModelTier(item);
+                          const compCount = resolveComponentCount(item);
+
+                          return (
+                            <button
+                              key={item.id}
+                              type="button"
+                              onClick={() => {
+                                if (onSelectCatalogItem) {
+                                  onSelectCatalogItem(item);
+                                }
+                              }}
+                              className={`w-full text-left p-2.5 rounded-lg border transition-all duration-200 text-xs cursor-pointer group ${
+                                isSelected
+                                  ? 'bg-slate-800 border-cyan-500/50 text-cyan-50 shadow-md ring-1 ring-cyan-500/30'
+                                  : 'bg-slate-900/40 border-slate-800/80 text-slate-400 hover:bg-slate-850 hover:text-slate-200 hover:border-slate-700'
+                              }`}
+                            >
+                              <div className="font-semibold text-xs truncate group-hover:text-cyan-300 transition-colors">
+                                {item.topic}
+                              </div>
+                              {item.metaphor && (
+                                <div className="text-[10px] text-slate-500 truncate mt-0.5 font-light">
+                                  {item.metaphor}
+                                </div>
+                              )}
+                              <div className="mt-1.5 flex items-center justify-between text-[9px] font-mono text-slate-400">
+                                <span className="text-slate-500">
+                                  {compCount} parts
+                                </span>
+                                <div className="flex items-center gap-1">
+                                  {item.videoUrl && (
+                                    <span className="px-1 py-0.2 rounded bg-cyan-500/10 text-cyan-300 border border-cyan-500/30">
+                                      Video
+                                    </span>
+                                  )}
+                                  <span className={`px-1 py-0.2 rounded ${
+                                    tier === 'Budget Saver'
+                                      ? 'bg-emerald-500/15 text-emerald-300'
+                                      : 'bg-amber-500/15 text-amber-300'
+                                  }`}>
+                                    {tier === 'Budget Saver' ? 'Budget' : 'Pro'}
+                                  </span>
+                                </div>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="p-6 bg-slate-950 border-t border-slate-800 text-xs space-y-4">

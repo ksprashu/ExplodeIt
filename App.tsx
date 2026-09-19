@@ -1103,6 +1103,8 @@ const App: React.FC = () => {
         currentTier={modelPreferences.tier}
         currentConfig={modelPreferences.config}
         onOpenModelSettings={() => setIsModelSettingsOpen(true)}
+        catalogItems={catalog}
+        onSelectCatalogItem={handleSelectShowcaseTopic}
       />
 
       <main className="flex-1 flex flex-col h-screen h-[100dvh] overflow-hidden relative">
