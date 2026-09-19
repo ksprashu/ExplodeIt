@@ -59,7 +59,7 @@ The suite is structured into four complementary verification tiers:
 5. `test_feat01_package_dependencies_soundness`: Asserts `@google/genai`, `react`, `react-dom`, and `tailwindcss` resolve cleanly.
 
 #### FEAT-02: Model Registry & Pricing Engine
-1. `test_feat02_registry_contains_all_models`: Asserts `MODEL_REGISTRY` contains entries for Gemini 3 Pro, 2.5 Flash, Flash Lite, Pro Image, Imagen 3, Veo 3.1, Veo 2, and TTS.
+1. `test_feat02_registry_contains_all_models`: Asserts `MODEL_REGISTRY` contains entries for Gemini 3.1 Pro, 3.8 Flash, 3.5 Flash Lite, Gemini 3 Pro Image, Gemini 3.1 Flash Image, Veo 3.1, Veo 3.1 Lite, and TTS.
 2. `test_feat02_calculate_token_cost_pro`: Calculates cost for Gemini 3 Pro with 1,000 input and 2,000 output tokens ($0.00125 + $0.010 = $0.01125).
 3. `test_feat02_calculate_media_cost_flat`: Calculates image and video flat per-generation fees correctly ($0.04/image, $0.10/video).
 4. `test_feat02_calculate_tts_char_cost`: Calculates TTS cost based on character count ($0.002 per 1k characters).
@@ -67,7 +67,7 @@ The suite is structured into four complementary verification tiers:
 
 #### FEAT-03: Model Tier UI & Persistence
 1. `test_feat03_preset_toggle_pro_sets_default_models`: Selecting 'pro' activates Gemini 3 Pro planning, Pro Image, and Veo 3.1.
-2. `test_feat03_preset_toggle_budget_sets_budget_models`: Selecting 'budget' activates Flash planning, Imagen 3, and disables/downgrades video.
+2. `test_feat03_preset_toggle_budget_sets_budget_models`: Selecting 'budget' activates Flash planning, Gemini 3.1 Flash Image, and disables/downgrades video.
 3. `test_feat03_localstorage_persistence_write_and_read`: Setting model tier serializes to `localStorage.getItem('explodeit_model_tier')`.
 4. `test_feat03_advanced_accordion_override_single_stage`: Modifying only `narration` to custom model preserves other stages.
 5. `test_feat03_budget_disable_video_flag`: Toggling `enableVideo: false` sets video cost to $0.00 in run estimator.

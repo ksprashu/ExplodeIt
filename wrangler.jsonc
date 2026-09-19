@@ -1,0 +1,15 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "explodeit",
+  "pages_build_output_dir": "dist",
+  "compatibility_date": "2024-09-23",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "r2_buckets": [
+    {
+      "binding": "COMMUNITY_BUCKET",
+      "bucket_name": "explodeit-community"
+    }
+  ]
+}

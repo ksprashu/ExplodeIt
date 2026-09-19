@@ -232,7 +232,12 @@ export const planObject = async (
 
         const text = extractOutputText(interaction);
         if (!text) throw new Error("Failed to plan object");
-        const cleanJson = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+        let cleanJson = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+        const firstBrace = cleanJson.indexOf('{');
+        const lastBrace = cleanJson.lastIndexOf('}');
+        if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+            cleanJson = cleanJson.slice(firstBrace, lastBrace + 1);
+        }
         const data = JSON.parse(cleanJson) as ObjectPlan;
         const { inputTokens, outputTokens } = parseTokenUsage(interaction);
 
@@ -426,7 +431,7 @@ export const enrichComponentDetails = async (
     const ai = getAI();
     const model = (typeof stageModelOverride === 'string'
         ? stageModelOverride
-        : (stageModelOverride as any)?.authoring || stageModelOverride?.planning) || MODEL_AUTHORING;
+        : (stageModelOverride as any)?.authoring) || MODEL_AUTHORING;
     const BATCH_SIZE = 3;
     const usageLogs: TokenUsage[] = [];
     const allComponentDetails: ComponentPart[] = [];
@@ -479,13 +484,33 @@ export const enrichComponentDetails = async (
             
             const uniqueSources = Array.from(new Set(filteredSources));
 
-            // Parse JSON manually from the text (Gemini usually wraps in ```json ... ```)
-            const jsonMatch = text.match(/```json\n([\s\S]*?)\n```/) || text.match(/```\n([\s\S]*?)\n```/);
-            const jsonString = jsonMatch ? jsonMatch[1] : text;
+            // Parse JSON from the text, handling markdown code fences, CRLF line endings, arrays, and surrounding prose
+            let jsonString = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+            const firstBrace = jsonString.indexOf('{');
+            const lastBrace = jsonString.lastIndexOf('}');
+            const firstBracket = jsonString.indexOf('[');
+            const lastBracket = jsonString.lastIndexOf(']');
+
+            if (firstBracket !== -1 && lastBracket > firstBracket && (firstBrace === -1 || firstBracket < firstBrace)) {
+                jsonString = jsonString.slice(firstBracket, lastBracket + 1);
+            } else if (firstBrace !== -1 && lastBrace > firstBrace) {
+                jsonString = jsonString.slice(firstBrace, lastBrace + 1);
+            }
             
             let result: { components: ComponentPart[] } = { components: [] };
             try {
-                result = JSON.parse(jsonString);
+                const parsed = JSON.parse(jsonString);
+                if (Array.isArray(parsed)) {
+                    result = { components: parsed };
+                } else if (parsed && typeof parsed === 'object') {
+                    result = {
+                        components: Array.isArray(parsed.components)
+                            ? parsed.components
+                            : Array.isArray(parsed.parts)
+                            ? parsed.parts
+                            : []
+                    };
+                }
             } catch (e) {
                 console.error("Failed to parse JSON from search result", text);
             }
@@ -692,18 +717,24 @@ export const generateAudioNarration = async (
         }
         if (!base64Audio) throw new Error("No audio data returned");
 
-        // Convert base64 to blob url
-        const binaryString = atob(base64Audio);
+        // Convert base64 to blob url (strip potential whitespace/newlines)
+        const cleanBase64Audio = base64Audio.replace(/\s+/g, '');
+        const binaryString = atob(cleanBase64Audio);
         const len = binaryString.length;
         const bytes = new Uint8Array(len);
         for (let i = 0; i < len; i++) {
              bytes[i] = binaryString.charCodeAt(i);
         }
         
-        // Add WAV Header if not already containerized WAV
+        // Add WAV Header if not already containerized (WAV, MP3, OGG)
+        const audioMime = interaction?.output_audio?.mime_type || 'audio/wav';
         let wavBlob: Blob;
         if (binaryString.startsWith('RIFF')) {
             wavBlob = new Blob([bytes], { type: 'audio/wav' });
+        } else if (binaryString.startsWith('ID3') || audioMime.includes('mp3') || audioMime.includes('mpeg')) {
+            wavBlob = new Blob([bytes], { type: 'audio/mpeg' });
+        } else if (binaryString.startsWith('OggS') || audioMime.includes('ogg')) {
+            wavBlob = new Blob([bytes], { type: 'audio/ogg' });
         } else {
             const wavHeader = getWavHeader(len, 24000, 1); // 24kHz mono is standard for Gemini TTS usually
             const wavBytes = new Uint8Array(wavHeader.length + len);

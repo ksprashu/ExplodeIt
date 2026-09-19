@@ -9,6 +9,7 @@ import {
   MODEL_VIDEO_BUDGET,
   MODEL_TTS, 
   MODEL_SURPRISE,
+  CANONICAL_MODEL_PRESETS,
   PlanSchema 
 } from '../constants';
 import { ObjectPlan } from '../types';
@@ -573,5 +574,127 @@ describe('Gemini Interactions API v2.3+ Integration Suite', () => {
       expect(callArgs.image.imageBytes).toBe('ASSEMBLED_BASE64_DATA');
       expect(callArgs.config.lastFrame.imageBytes).toBe('INFOGRAPHIC_BASE64_DATA');
     });
+
+    it('planObject: handles CRLF line endings and surrounding conversational prose', async () => {
+      const mockPlan = createDummyPlan();
+      mockInteractionsCreate.mockResolvedValueOnce({
+        output_text: "Here is your blueprint plan:\r\n```json\r\n" + JSON.stringify(mockPlan) + "\r\n```\r\nHope this helps with your deconstruction!",
+        usage: { total_input_tokens: 500, total_output_tokens: 900 }
+      });
+
+      const res = await planObject('Vintage SLR Camera');
+      expect(res.data.displayTitle).toBe('Vintage SLR Camera');
+      expect(res.data.componentList).toHaveLength(3);
+    });
+
+    it('enrichComponentDetails: handles CRLF line endings and conversational wrapper in component analysis', async () => {
+      mockInteractionsCreate.mockResolvedValueOnce({
+        output_text: "Component breakdown analysis:\r\n```json\r\n" + JSON.stringify({
+          components: [
+            {
+              name: 'Helicoid Mechanism',
+              composition: 'Brass & Aluminum',
+              shortDescription: 'Precision focusing helix.',
+              detailedContent: 'Rotational motion converted into smooth linear translation.'
+            }
+          ]
+        }) + "\r\n```\r\nEnd of analysis.",
+        steps: [
+          {
+            type: 'google_search_result',
+            result: [{ url: 'https://camera-wiki.org/wiki/Helicoid' }]
+          }
+        ]
+      });
+
+      const res = await enrichComponentDetails('Vintage Camera', ['Helicoid Mechanism']);
+      expect(res.data).toHaveLength(1);
+      expect(res.data[0].name).toBe('Helicoid Mechanism');
+      expect(res.data[0].composition).toBe('Brass & Aluminum');
+      expect(res.data[0].sources).toContain('https://camera-wiki.org/wiki/Helicoid');
+    });
+
+    it('generateAudioNarration: handles whitespace-padded base64 audio gracefully', async () => {
+      mockInteractionsCreate.mockResolvedValueOnce({
+        output_text: 'Script with whitespace audio test'
+      });
+
+      // Valid RIFF/WAVE header base64 padded with \n and spaces
+      const rawRiff = btoa('RIFF\x24\x00\x00\x00WAVEfmt \x10\x00\x00\x00\x01\x00\x01\x00\x40\x1f\x00\x00\x80\x3e\x00\x00\x02\x00\x10\x00data\x00\x00\x00\x00');
+      const paddedBase64 = `\n  ${rawRiff.slice(0, 20)}\n  ${rawRiff.slice(20)}\n  `;
+
+      mockInteractionsCreate.mockResolvedValueOnce({
+        output_audio: {
+          data: paddedBase64,
+          mime_type: 'audio/wav'
+        }
+      });
+
+      const res = await generateAudioNarration('Camera', 'Origin', 'Article', ['Fact'], 'Zephyr');
+      expect(res.url).toMatch(/^blob:/);
+      expect(res.script).toBe('Script with whitespace audio test');
+    });
+
+    it('enrichComponentDetails: preserves MODEL_AUTHORING (gemini-3.8-flash) when StageModelConfig is passed', async () => {
+      mockInteractionsCreate.mockResolvedValueOnce({
+        output_text: JSON.stringify({
+          components: [
+            {
+              name: 'Shutter Mechanism',
+              composition: 'Titanium Curtain',
+              shortDescription: 'Focal plane shutter.',
+              detailedContent: 'Controls sensor exposure duration with precision timing.'
+            }
+          ]
+        })
+      });
+
+      // Pass Pro Studio config (which has planning: 'gemini-3.1-pro-preview')
+      const res = await enrichComponentDetails('Vintage Camera', ['Shutter Mechanism'], CANONICAL_MODEL_PRESETS.pro);
+      expect(res.data).toHaveLength(1);
+      expect(res.usage[0].model).toBe(MODEL_AUTHORING);
+      expect(res.usage[0].model).not.toBe(MODEL_PLANNING);
+
+      const callArgs = mockInteractionsCreate.mock.calls[0][0];
+      expect(callArgs.model).toBe(MODEL_AUTHORING);
+    });
+
+    it('enrichComponentDetails: parses JSON response when model outputs raw array directly', async () => {
+      mockInteractionsCreate.mockResolvedValueOnce({
+        output_text: "```json\n" + JSON.stringify([
+          {
+            name: 'Optical Prism',
+            composition: 'Crown Glass',
+            shortDescription: 'Refracts light.',
+            detailedContent: 'Corrects viewing orientation.'
+          }
+        ]) + "\n```"
+      });
+
+      const res = await enrichComponentDetails('Vintage Camera', ['Optical Prism']);
+      expect(res.data).toHaveLength(1);
+      expect(res.data[0].name).toBe('Optical Prism');
+      expect(res.data[0].composition).toBe('Crown Glass');
+    });
+
+    it('generateAudioNarration: handles ID3 containerized MP3 audio without prepending WAV header', async () => {
+      mockInteractionsCreate.mockResolvedValueOnce({
+        output_text: 'Narration script for MP3 stream'
+      });
+
+      // Valid ID3v2 container header base64 (ID3\x04\x00\x00\x00\x00\x00\x00)
+      const mp3Base64 = btoa('ID3\x04\x00\x00\x00\x00\x00\x00\xff\xfb\x90\x44');
+      mockInteractionsCreate.mockResolvedValueOnce({
+        output_audio: {
+          data: mp3Base64,
+          mime_type: 'audio/mp3'
+        }
+      });
+
+      const res = await generateAudioNarration('Camera', 'Origin', 'Article', ['Fact'], 'Zephyr');
+      expect(res.url).toMatch(/^blob:/);
+      expect(res.script).toBe('Narration script for MP3 stream');
+    });
   });
 });
+

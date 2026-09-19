@@ -364,7 +364,7 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status, onBackToShowcas
                 <span className="w-1 h-8 bg-gradient-to-b from-cyan-500 to-blue-500 rounded-full block"></span>
                 {plan.sectionTitles?.anatomy || "Object Anatomy"}
             </h3>
-            <span className="text-xs font-mono text-purple-400 border border-purple-500/30 px-2 py-1 rounded bg-purple-500/10">POWERED BY GEMINI 2.5 FLASH + SEARCH</span>
+            <span className="text-xs font-mono text-purple-400 border border-purple-500/30 px-2 py-1 rounded bg-purple-500/10">POWERED BY GEMINI 3.8 FLASH + SEARCH</span>
         </div>
        
         <p className="text-slate-400 text-sm">Click on any component to read the engineering deep dive.</p>
@@ -587,7 +587,7 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status, onBackToShowcas
                           ) : (
                              <div className="flex items-center gap-3 text-slate-500 italic">
                                  <div className="w-4 h-4 border-2 border-slate-600 border-t-cyan-500 rounded-full animate-spin"></div>
-                                 Fetching detailed analysis from Gemini 2.5 Flash...
+                                 Fetching detailed analysis from Gemini 3.8 Flash...
                              </div>
                           )}
                       </div>

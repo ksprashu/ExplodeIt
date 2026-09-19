@@ -167,7 +167,7 @@ export const Header: React.FC<HeaderProps> = ({
                 ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md shadow-emerald-500/25 ring-1 ring-emerald-400/50'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
             }`}
-            title="Budget Saver: Fast, credit-conserving models (Gemini 2.5 Flash, Imagen 3 Fast, optional video)"
+            title="Budget Saver: Fast, credit-conserving models (Gemini 3.8 Flash, Gemini 3.1 Flash Image, optional video)"
           >
             <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />

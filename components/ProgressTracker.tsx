@@ -24,7 +24,7 @@ const ProgressTracker: React.FC<ProgressTrackerProps> = ({ status, config }) => 
     const planModel = config?.planning ? (MODEL_REGISTRY[config.planning]?.displayName || 'Gemini 3.1 Pro') : 'Gemini 3.1 Pro';
     const infoModel = config?.infographic ? (MODEL_REGISTRY[config.infographic]?.displayName || 'Gemini 3 Pro Image') : 'Gemini 3 Pro Image';
     const assemModel = config?.assembled ? (MODEL_REGISTRY[config.assembled]?.displayName || 'Gemini 3 Pro Image') : 'Gemini 3 Pro Image';
-    const deepModel = MODEL_REGISTRY[MODEL_AUTHORING]?.displayName || 'Gemini 2.5 Flash';
+    const deepModel = MODEL_REGISTRY[MODEL_AUTHORING]?.displayName || 'Gemini 3.8 Flash';
     const videoModel = config?.video ? (MODEL_REGISTRY[config.video]?.displayName || 'Veo 3.1') : 'Veo 3.1';
     const ttsModel = MODEL_REGISTRY[MODEL_TTS]?.displayName || 'Gemini TTS';
 
@@ -64,7 +64,7 @@ const ProgressTracker: React.FC<ProgressTrackerProps> = ({ status, config }) => 
                     <div className="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
                     IDEATION
                 </span>
-                <span className="text-slate-500 text-xs font-mono uppercase tracking-widest">GEMINI 2.5 FLASH</span>
+                <span className="text-slate-500 text-xs font-mono uppercase tracking-widest">GEMINI 3.8 FLASH</span>
              </div>
         ) : isFailed ? (
             <span className="text-red-400 font-bold text-xl">Generation Interrupted</span>

@@ -236,7 +236,7 @@ describe('Tier 5 Adversarial Coverage Hardening Suite 1', () => {
       // 3. Partial config preserves canonical defaults without undefined
       localStorage.setItem('explodeit_model_preferences', JSON.stringify({
         tier: 'budget',
-        config: { planning: 'gemini-2.5-flash' }
+        config: { planning: 'gemini-3.8-flash' }
       }));
       const partialRecovery = loadModelPreferences();
       expect(partialRecovery.tier).toBe('budget');

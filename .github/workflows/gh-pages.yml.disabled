@@ -1,3 +1,13 @@
+# ==============================================================================
+# ARCHIVED WORKFLOW - DISABLED
+# ==============================================================================
+# This workflow was previously used for static deployment to GitHub Pages.
+# It has been archived and disabled by renaming to .github/workflows/gh-pages.yml.disabled
+# to prevent concurrent dual-deployment conflicts with Cloudflare Pages CI/CD.
+#
+# Active CI/CD deployment pipeline: .github/workflows/deploy-cloudflare.yml
+# ==============================================================================
+
 name: Deploy to GitHub Pages
 
 on:
