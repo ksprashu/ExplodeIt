@@ -6,12 +6,31 @@ import { afterEach, vi } from 'vitest';
 // Configure async wait timeout for CI environments
 configure({ asyncUtilTimeout: 5000 });
 
-// 1. Automatically clean up rendered React components after each test
+// 1. Reset window state before and after each test to prevent cross-test state leakage
+beforeEach(() => {
+  if (typeof window !== 'undefined') {
+    try {
+      window.history.replaceState({}, '', '/');
+    } catch {
+      // ignore in environments without history support
+    }
+  }
+});
+
 afterEach(() => {
   cleanup();
   if (typeof window !== 'undefined') {
-    localStorage.clear();
-    sessionStorage.clear();
+    try {
+      localStorage.clear();
+      sessionStorage.clear();
+    } catch {
+      // ignore
+    }
+    try {
+      window.history.replaceState({}, '', '/');
+    } catch {
+      // ignore
+    }
   }
   vi.clearAllMocks();
   vi.restoreAllMocks();

@@ -250,4 +250,59 @@ describe('CommunityShowcase Component Render & Interactivity', () => {
     // Slide counter returns to 01
     expect(screen.getByText(/01 \/ 0/)).toBeInTheDocument();
   });
+
+  it('renders inviting API key CTA banner when hasKey is false and fires onOpenApiKeyModal on click', () => {
+    const onOpenModalMock = vi.fn();
+    render(
+      <CommunityShowcase
+        onSelectTopic={onSelectTopicMock}
+        catalogItems={mockCatalog}
+        isLoading={false}
+        hasKey={false}
+        onOpenApiKeyModal={onOpenModalMock}
+      />
+    );
+
+    // Banner is rendered
+    expect(screen.getByLabelText('Unlock Custom Deconstructions')).toBeInTheDocument();
+    expect(
+      screen.getByText(/Enter your Gemini API key to craft custom exploded views/i)
+    ).toBeInTheDocument();
+
+    // CTA button exists
+    const ctaButton = screen.getByRole('button', {
+      name: /Enter Gemini API key to craft custom exploded views/i,
+    });
+    expect(ctaButton).toBeInTheDocument();
+
+    // Clicking CTA button triggers callback
+    fireEvent.click(ctaButton);
+    expect(onOpenModalMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('swaps CTA banner to active key status indicator when hasKey is true', () => {
+    const onOpenModalMock = vi.fn();
+    render(
+      <CommunityShowcase
+        onSelectTopic={onSelectTopicMock}
+        catalogItems={mockCatalog}
+        isLoading={false}
+        hasKey={true}
+        onOpenApiKeyModal={onOpenModalMock}
+      />
+    );
+
+    // CTA banner is NOT present
+    expect(screen.queryByLabelText('Unlock Custom Deconstructions')).not.toBeInTheDocument();
+
+    // Active key status indicator IS present
+    expect(screen.getByLabelText('Active Gemini Key Status')).toBeInTheDocument();
+    expect(screen.getByText('Gemini API Key Active')).toBeInTheDocument();
+    expect(screen.getByText('Custom Generations Unlocked')).toBeInTheDocument();
+
+    // Manage key button is clickable
+    const manageBtn = screen.getByRole('button', { name: /Manage Key/i });
+    fireEvent.click(manageBtn);
+    expect(onOpenModalMock).toHaveBeenCalledTimes(1);
+  });
 });

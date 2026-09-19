@@ -21,7 +21,7 @@ const STATUS_MAP = {
 
 const ProgressTracker: React.FC<ProgressTrackerProps> = ({ status, config }) => {
   const steps = useMemo(() => {
-    const planModel = config?.planning ? (MODEL_REGISTRY[config.planning]?.displayName || 'Gemini 3.1 Pro') : 'Gemini 3.1 Pro';
+    const planModel = config?.planning ? (MODEL_REGISTRY[config.planning]?.displayName || 'Gemini 3.8 Flash') : 'Gemini 3.8 Flash';
     const infoModel = config?.infographic ? (MODEL_REGISTRY[config.infographic]?.displayName || 'Gemini 3 Pro Image') : 'Gemini 3 Pro Image';
     const assemModel = config?.assembled ? (MODEL_REGISTRY[config.assembled]?.displayName || 'Gemini 3 Pro Image') : 'Gemini 3 Pro Image';
     const deepModel = MODEL_REGISTRY[MODEL_AUTHORING]?.displayName || 'Gemini 3.8 Flash';

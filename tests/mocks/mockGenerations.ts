@@ -33,7 +33,12 @@ export const mockCameraPlan: ObjectPlan = {
   audioVibe: {
     voiceName: 'Fenrir',
     toneDescription: 'Precise, authoritative, mechanical engineering focus'
-  }
+  },
+  cleanExplodedPrompt: 'Pristine 3D deconstruction of Twin-Lens Reflex (TLR) Camera with zero 2D text, floating suspended components on dark obsidian backdrop.',
+  cleanAssembledPrompt: 'Finished assembled studio view of Twin-Lens Reflex (TLR) Camera at 45° isometric perspective, 5600K studio illumination on obsidian surface.',
+  videoAssemblyPrompt: 'Cinematic 8K assembly animation of Twin-Lens Reflex Camera with lens threading, leaf shutter seating, and die-cast aluminum chassis interlocking.',
+  videoDisassemblyPrompt: 'Cinematic 8K disassembly animation of Twin-Lens Reflex Camera with radial chassis decoupling and optical element unseating.',
+  kinematicDetails: 'Dual-lens focusing rack actuation, viewing hood articulation, and 5-bladed synchro-compur leaf shutter tensioning and release.'
 };
 
 export const mockCameraComponents: ComponentPart[] = [

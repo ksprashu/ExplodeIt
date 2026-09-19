@@ -83,7 +83,12 @@ describe('Gemini Interactions API v2.3+ Integration Suite', () => {
     audioVibe: {
       voiceName: 'Kore',
       toneDescription: 'Classic documentary tone'
-    }
+    },
+    cleanExplodedPrompt: 'Pristine 3D exploded view of Vintage SLR Camera with zero 2D text.',
+    cleanAssembledPrompt: 'Finished assembled studio view of Vintage SLR Camera at 45 degree isometric perspective.',
+    videoAssemblyPrompt: 'Kinematic assembly animation of Vintage SLR Camera with lens threading and chassis locking.',
+    videoDisassemblyPrompt: 'Kinematic disassembly animation of Vintage SLR Camera with radial unseating.',
+    kinematicDetails: 'Shutter actuation and mirror flip mechanics during 1/1000s exposure.'
   });
 
   describe('Core Pipeline Interactions API Signatures', () => {
@@ -135,6 +140,8 @@ describe('Gemini Interactions API v2.3+ Integration Suite', () => {
       const callArgs = mockInteractionsCreate.mock.calls[0][0];
       expect(callArgs.model).toBe(MODEL_PLANNING);
       expect(callArgs.tools).toEqual([{ type: 'google_search' }]);
+      expect(callArgs.thinkingConfig).toEqual({ thinkingLevel: 'HIGH' });
+      expect(callArgs.generation_config).toEqual({ thinking_level: 'HIGH' });
       expect(callArgs.response_format).toEqual({
         type: 'text',
         mime_type: 'application/json',
@@ -575,6 +582,79 @@ describe('Gemini Interactions API v2.3+ Integration Suite', () => {
       expect(callArgs.config.lastFrame.imageBytes).toBe('INFOGRAPHIC_BASE64_DATA');
     });
 
+    it('generateVideo: uses plan.videoAssemblyPrompt when plan is provided in assembly mode', async () => {
+      const dummyAssembledUrl = 'data:image/png;base64,ASSEMBLED_BASE64_DATA';
+      const dummyInfographicUrl = 'data:image/png;base64,INFOGRAPHIC_BASE64_DATA';
+      const mockOp = {
+        done: true,
+        response: {
+          generatedVideos: [
+            { video: { uri: 'https://generativelanguage.googleapis.com/v1beta/files/video-kinematic-1' } }
+          ]
+        }
+      };
+
+      mockGenerateVideos.mockResolvedValueOnce(mockOp);
+      vi.spyOn(global, 'fetch').mockResolvedValueOnce({
+        blob: async () => new Blob(['dummy-mp4-data'], { type: 'video/mp4' })
+      } as any);
+
+      const customPlan: ObjectPlan = {
+        ...createDummyPlan(),
+        videoAssemblyPrompt: 'Custom Kinematic Assembly: Gears slide into brass mesh.'
+      };
+
+      const res = await generateVideo(
+        'Vintage Camera',
+        'PHYSICAL',
+        'Exploded View',
+        dummyAssembledUrl,
+        dummyInfographicUrl,
+        undefined,
+        customPlan
+      );
+
+      expect(res.url).toMatch(/^blob:/);
+      const callArgs = mockGenerateVideos.mock.calls[0][0];
+      expect(callArgs.prompt).toBe('Custom Kinematic Assembly: Gears slide into brass mesh.');
+    });
+
+    it('generateVideo: uses plan.videoDisassemblyPrompt when plan is provided in disassembly mode', async () => {
+      const dummyAssembledUrl = 'data:image/png;base64,ASSEMBLED_BASE64_DATA';
+      const dummyInfographicUrl = 'data:image/png;base64,INFOGRAPHIC_BASE64_DATA';
+      const mockOp = {
+        done: true,
+        response: {
+          generatedVideos: [
+            { video: { uri: 'https://generativelanguage.googleapis.com/v1beta/files/video-kinematic-2' } }
+          ]
+        }
+      };
+
+      mockGenerateVideos.mockResolvedValueOnce(mockOp);
+      vi.spyOn(global, 'fetch').mockResolvedValueOnce({
+        blob: async () => new Blob(['dummy-mp4-data'], { type: 'video/mp4' })
+      } as any);
+
+      const customPlan: ObjectPlan = {
+        ...createDummyPlan(),
+        videoDisassemblyPrompt: 'Custom Kinematic Disassembly: Shutter leaves unseat radially.'
+      };
+
+      const res = await generateVideo(
+        'Vintage Camera',
+        'PHYSICAL',
+        'Exploded View',
+        dummyAssembledUrl,
+        dummyInfographicUrl,
+        { mode: 'disassembly', plan: customPlan }
+      );
+
+      expect(res.url).toMatch(/^blob:/);
+      const callArgs = mockGenerateVideos.mock.calls[0][0];
+      expect(callArgs.prompt).toBe('Custom Kinematic Disassembly: Shutter leaves unseat radially.');
+    });
+
     it('planObject: handles CRLF line endings and surrounding conversational prose', async () => {
       const mockPlan = createDummyPlan();
       mockInteractionsCreate.mockResolvedValueOnce({
@@ -649,11 +729,12 @@ describe('Gemini Interactions API v2.3+ Integration Suite', () => {
         })
       });
 
-      // Pass Pro Studio config (which has planning: 'gemini-3.1-pro-preview')
-      const res = await enrichComponentDetails('Vintage Camera', ['Shutter Mechanism'], CANONICAL_MODEL_PRESETS.pro);
+      // Pass config with distinct planning model to verify authoring is not overridden by config.planning
+      const testConfig = { ...CANONICAL_MODEL_PRESETS.pro, planning: 'gemini-3.1-pro-preview' };
+      const res = await enrichComponentDetails('Vintage Camera', ['Shutter Mechanism'], testConfig);
       expect(res.data).toHaveLength(1);
       expect(res.usage[0].model).toBe(MODEL_AUTHORING);
-      expect(res.usage[0].model).not.toBe(MODEL_PLANNING);
+      expect(res.usage[0].model).not.toBe(testConfig.planning);
 
       const callArgs = mockInteractionsCreate.mock.calls[0][0];
       expect(callArgs.model).toBe(MODEL_AUTHORING);

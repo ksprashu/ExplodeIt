@@ -567,7 +567,7 @@ describe('Challenger 2 - Empirical Stress Harness: Milestone 2', () => {
 
       // Planning step title and default model subtitle
       expect(screen.getByText('Planning')).toBeInTheDocument();
-      expect(screen.getByText('Gemini 3.1 Pro')).toBeInTheDocument();
+      expect(screen.getByText('Gemini 3.8 Flash')).toBeInTheDocument();
       expect(container).toBeDefined();
 
       // Also verify Blueprinting state

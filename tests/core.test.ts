@@ -16,7 +16,7 @@ import { GenerationItem } from '../types';
 
 describe('Constants & Model Configuration', () => {
   it('should define all production Google GenAI model identifiers', () => {
-    expect(MODEL_PLANNING).toBe('gemini-3.1-pro-preview');
+    expect(MODEL_PLANNING).toBe('gemini-3.8-flash');
     expect(MODEL_AUTHORING).toBe('gemini-3.8-flash');
     expect(MODEL_SCRIPT).toBe('gemini-3.5-flash-lite');
     expect(MODEL_IMAGE).toBe('gemini-3-pro-image');
@@ -26,8 +26,8 @@ describe('Constants & Model Configuration', () => {
   });
 
   it('should have pricing rates defined for all model stages', () => {
-    expect(PRICING[MODEL_PLANNING].inputPer1kTokens).toBe(0.002);
-    expect(PRICING[MODEL_PLANNING].outputPer1kTokens).toBe(0.012);
+    expect(PRICING[MODEL_PLANNING].inputPer1kTokens).toBe(0.0003);
+    expect(PRICING[MODEL_PLANNING].outputPer1kTokens).toBe(0.0025);
     expect(PRICING[MODEL_AUTHORING].inputPer1kTokens).toBe(0.0003);
     expect(PRICING[MODEL_AUTHORING].outputPer1kTokens).toBe(0.0025);
     expect(PRICING[MODEL_SCRIPT].inputPer1kTokens).toBe(0.0001);
@@ -139,9 +139,9 @@ describe('Asset Management & Revocation Logic', () => {
 
 describe('Pricing & Cost Calculation via Services', () => {
   it('should calculate accurate costs for Gemini 3.x models', () => {
-    // Planning: 1,000 in ($0.002), 2,000 out (2 * $0.012 = $0.024) -> $0.026
+    // Planning (Gemini 3.8 Flash): 1,000 in ($0.0003), 2,000 out (2 * $0.0025 = $0.005) -> $0.0053
     const planCost = calculateCost(MODEL_PLANNING, 1000, 2000);
-    expect(planCost).toBeCloseTo(0.026, 5);
+    expect(planCost).toBeCloseTo(0.0053, 5);
 
     // Deep Dive / Authoring (Gemini 3.8 Flash): 1,000 in ($0.0003), 2,000 out (2 * $0.0025 = $0.005) -> $0.0053
     const authorCost = calculateCost(MODEL_AUTHORING, 1000, 2000);

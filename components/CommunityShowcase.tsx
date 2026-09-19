@@ -10,6 +10,10 @@ export interface CommunityShowcaseProps {
   catalogItems?: CommunityCatalogItem[];
   /** Controlled loading state (optional, defaults to internal fetch state) */
   isLoading?: boolean;
+  /** Whether a Gemini API key is currently active */
+  hasKey?: boolean;
+  /** Callback to open the API key configuration modal */
+  onOpenApiKeyModal?: () => void;
 }
 
 export type ShowcaseCategory = 'All' | 'Mechanical' | 'Anatomy' | 'Electronics' | 'Science' | 'Everyday';
@@ -171,6 +175,8 @@ export const CommunityShowcase: React.FC<CommunityShowcaseProps> = ({
   onSelectTopic,
   catalogItems: propItems,
   isLoading: propLoading,
+  hasKey = false,
+  onOpenApiKeyModal,
 }) => {
   // 1. Data Fetching State
   const [internalItems, setInternalItems] = useState<CommunityCatalogItem[]>(() => SEED_COMMUNITY_CATALOG);
@@ -547,6 +553,118 @@ export const CommunityShowcase: React.FC<CommunityShowcaseProps> = ({
           </div>
         ) : null}
       </section>
+
+      {/* ================================================================== */}
+      {/* SECTION 1.5: API KEY CALL-TO-ACTION BANNER / CARD */}
+      {/* ================================================================== */}
+      {!hasKey ? (
+        <section
+          aria-label="Unlock Custom Deconstructions"
+          tabIndex={0}
+          onClick={onOpenApiKeyModal}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              onOpenApiKeyModal?.();
+            }
+          }}
+          className="relative rounded-3xl overflow-hidden border border-cyan-500/30 bg-gradient-to-r from-slate-900/95 via-cyan-950/40 to-slate-900/95 p-5 sm:p-8 shadow-xl shadow-cyan-950/20 cursor-pointer group/banner transition-all duration-300 hover:border-cyan-400/50 hover:shadow-cyan-500/10 focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
+        >
+          {/* Ambient Glows */}
+          <div className="absolute -top-12 -right-12 w-64 h-64 bg-cyan-500/10 blur-[80px] rounded-full pointer-events-none" />
+          <div className="absolute -bottom-12 -left-12 w-64 h-64 bg-blue-500/10 blur-[80px] rounded-full pointer-events-none" />
+
+          <div className="relative z-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+            {/* Left: Copy and benefits */}
+            <div className="space-y-2 max-w-2xl">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold uppercase tracking-wider bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
+                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+                  Custom Generations
+                </span>
+                <span className="text-xs text-slate-400 font-mono hidden sm:inline">
+                  • BYOK Session Storage
+                </span>
+              </div>
+              <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+                Craft Your Own Exploded Views
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                Enter your Gemini API key to craft custom exploded views of any physical object, machine, or biological system. Generate blueprints, deep dive component analyses, and assembly videos.
+              </p>
+              <div className="flex flex-wrap items-center gap-4 text-[11px] text-slate-400 font-mono pt-1">
+                <span className="flex items-center gap-1">
+                  <svg className="w-3.5 h-3.5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                  Session-only storage (tab memory)
+                </span>
+                <span className="flex items-center gap-1">
+                  <svg className="w-3.5 h-3.5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                  Zero server credentials
+                </span>
+              </div>
+            </div>
+
+            {/* Right: Action Button */}
+            <div className="w-full lg:w-auto shrink-0">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenApiKeyModal?.();
+                }}
+                className="w-full sm:w-auto px-5 sm:px-6 py-3.5 rounded-xl font-bold text-white text-xs sm:text-sm flex items-center justify-center gap-2.5 transition-all duration-300 bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:from-cyan-400 hover:via-blue-500 hover:to-indigo-500 shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
+                aria-label="Enter Gemini API key to craft custom exploded views"
+              >
+                <svg className="w-4 h-4 text-cyan-200 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                </svg>
+                <span className="text-center">Enter Gemini Key to Craft Custom Views</span>
+              </button>
+            </div>
+          </div>
+        </section>
+      ) : (
+        <section
+          aria-label="Active Gemini Key Status"
+          className="relative rounded-3xl overflow-hidden border border-emerald-500/30 bg-gradient-to-r from-slate-900/95 via-emerald-950/30 to-slate-900/95 p-4 sm:p-6 shadow-xl shadow-emerald-950/20"
+        >
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center shrink-0">
+                <svg className="w-5 h-5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                  <path d="m9 12 2 2 4-4" />
+                </svg>
+              </div>
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <h4 className="text-sm font-bold text-white">Gemini API Key Active</h4>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-500/30">
+                    Custom Generations Unlocked
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Session key active (tab memory only). Enter any object in the prompt bar above to create custom deconstructions.
+                </p>
+              </div>
+            </div>
+            {onOpenApiKeyModal && (
+              <button
+                type="button"
+                onClick={onOpenApiKeyModal}
+                className="w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition-colors cursor-pointer shrink-0 text-center"
+              >
+                Manage Key
+              </button>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* ================================================================== */}
       {/* SECTION 2: SEARCH & CATEGORY FILTER CONTROLS */}

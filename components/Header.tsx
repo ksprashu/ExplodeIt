@@ -8,6 +8,7 @@ export interface HeaderProps {
   onOpenModelSettings: () => void;
   onOpenApiKeyModal: () => void;
   onNavigateHome?: () => void;
+  onShare?: () => void;
   isViewingTopic?: boolean;
 }
 
@@ -18,6 +19,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenModelSettings,
   onOpenApiKeyModal,
   onNavigateHome,
+  onShare,
   isViewingTopic = false,
 }) => {
   const hasKey = Boolean(apiKey && apiKey.trim().length > 0);
@@ -28,17 +30,33 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="flex flex-wrap items-center gap-2 sm:gap-3">
         {/* Home / Back to Showcase Action */}
         {isViewingTopic && onNavigateHome ? (
-          <button
-            type="button"
-            onClick={onNavigateHome}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-xs font-semibold text-cyan-300 hover:text-cyan-200 transition-all shadow-sm group cursor-pointer"
-            title="Return to Community Showcase carousel"
-          >
-            <svg className="w-3.5 h-3.5 text-cyan-400 group-hover:-translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-            <span>← Back to Showcase</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onNavigateHome}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-xs font-semibold text-cyan-300 hover:text-cyan-200 transition-all shadow-sm group cursor-pointer"
+              title="Return to Community Showcase carousel"
+            >
+              <svg className="w-3.5 h-3.5 text-cyan-400 group-hover:-translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+              <span>← Back to Showcase</span>
+            </button>
+            {onShare && (
+              <button
+                type="button"
+                onClick={onShare}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-xs font-semibold text-slate-300 hover:text-cyan-200 transition-all shadow-sm group cursor-pointer"
+                title="Share this exploration"
+                aria-label="Share exploration"
+              >
+                <svg className="w-3.5 h-3.5 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                </svg>
+                <span>Share</span>
+              </button>
+            )}
+          </div>
         ) : (
           <div className="flex items-center gap-2 cursor-pointer" onClick={onNavigateHome}>
             <div className="w-8 h-8 bg-gradient-to-tr from-cyan-500 to-blue-600 rounded-lg flex items-center justify-center shadow-md shadow-cyan-500/20">
@@ -54,16 +72,16 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         )}
 
-        {/* GitHub Pages Badge */}
+        {/* Cloudflare Pages Badge */}
         <a
-          href="https://ksprashu.github.io/ExplodeIt/"
+          href="https://explodeit.pages.dev"
           target="_blank"
           rel="noopener noreferrer"
-          title="Static Single Page Application hosted on GitHub Pages"
+          title="Edge-native application hosted on Cloudflare Pages & R2"
           className="hidden md:flex items-center gap-2 px-2.5 py-1 rounded-full bg-slate-900/80 hover:bg-slate-800/80 border border-slate-800 hover:border-slate-700 text-xs font-medium text-slate-300 transition-all"
         >
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-          <span className="text-slate-400 text-[11px]">GitHub Pages</span>
+          <span className="text-slate-400 text-[11px]">Cloudflare Pages</span>
         </a>
 
         {/* 100% Client-Side Security Badge */}
@@ -97,46 +115,44 @@ export const Header: React.FC<HeaderProps> = ({
       {/* Right: Key Status Indicator, Tier Switcher & Settings */}
       <div className="flex items-center gap-2 sm:gap-3">
         {/* API Key Status Pill / Action Trigger */}
-        <button
-          type="button"
-          onClick={onOpenApiKeyModal}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 border shadow-sm group cursor-pointer ${
-            hasKey
-              ? 'bg-cyan-950/60 hover:bg-cyan-900/80 border-cyan-500/40 hover:border-cyan-500/70 text-cyan-200'
-              : 'bg-emerald-950/60 hover:bg-emerald-900/80 border-emerald-500/40 hover:border-emerald-500/70 text-emerald-300'
-          }`}
-          title={
-            hasKey
-              ? 'API Key active in session memory (sessionStorage). Click to view or update.'
-              : 'Browse Free Mode: Explore community encyclopedia without an API key. Click to configure API key for custom creations.'
-          }
-        >
-          <span
-            className={`w-2 h-2 rounded-full ${
-              hasKey
-                ? 'bg-cyan-400 shadow-[0_0_8px_rgba(6,182,212,0.8)]'
-                : 'bg-emerald-400 animate-pulse group-hover:scale-125 transition-transform'
-            }`}
-          />
-          <span className="text-[11px] font-mono uppercase tracking-wider">
-            {hasKey ? 'Key Configured' : 'Browse Free • Keyless Mode'}
-          </span>
-          <svg
-            className={`w-3.5 h-3.5 ml-0.5 transition-colors ${
-              hasKey ? 'text-cyan-400 group-hover:text-white' : 'text-emerald-400 group-hover:text-emerald-200'
-            }`}
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
+        {!hasKey ? (
+          <button
+            type="button"
+            onClick={onOpenApiKeyModal}
+            className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-3.5 py-1.5 rounded-full text-xs font-bold transition-all duration-200 border shadow-md group cursor-pointer bg-gradient-to-r from-cyan-500 via-blue-500 to-indigo-600 hover:from-cyan-400 hover:via-blue-400 hover:to-indigo-500 text-white border-cyan-400/60 shadow-cyan-500/25 hover:shadow-cyan-500/40 active:scale-95"
+            title="Configure Gemini API Key for custom generation runs"
+            aria-label="+ Enter Gemini Key"
           >
-            {hasKey ? (
+            <span className="whitespace-nowrap font-bold tracking-tight">
+              + Enter Gemini Key
+            </span>
+            <span className="hidden sm:inline-block text-[10px] font-mono font-medium px-2 py-0.5 rounded-full bg-slate-950/60 text-cyan-200 border border-cyan-400/30">
+              Browse Free • Keyless Mode
+            </span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={onOpenApiKeyModal}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 border shadow-sm group cursor-pointer bg-cyan-950/60 hover:bg-cyan-900/80 border-cyan-500/40 hover:border-cyan-500/70 text-cyan-200"
+            title="API Key active in session memory (sessionStorage). Click to view or update."
+            aria-label="Key Configured"
+          >
+            <span className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(6,182,212,0.8)]" />
+            <span className="text-[11px] font-mono uppercase tracking-wider">
+              Key Configured
+            </span>
+            <svg
+              className="w-3.5 h-3.5 ml-0.5 text-cyan-400 group-hover:text-white transition-colors"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
               <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-            ) : (
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-            )}
-          </svg>
-        </button>
+            </svg>
+          </button>
+        )}
 
         {/* Segmented Pill [ Pro Studio | Budget Saver ] */}
         <div className="flex items-center bg-slate-900/90 border border-slate-800 p-1 rounded-full shadow-inner">

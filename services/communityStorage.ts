@@ -496,8 +496,10 @@ export async function fetchCommunityCatalog(): Promise<CommunityCatalogItem[]> {
         return data.items;
       }
     }
-  } catch (err) {
-    console.warn('[CommunityStorage] Could not fetch catalog, falling back to mock driver:', err);
+  } catch (err: any) {
+    if (err?.code !== 'ERR_INVALID_URL' && !err?.message?.includes('Failed to parse URL')) {
+      console.warn('[CommunityStorage] Could not fetch catalog, falling back to mock driver:', err);
+    }
   }
   return await mockCommunityStorage.fetchCatalog();
 }
@@ -512,8 +514,10 @@ export async function fetchCommunityTopic(topicId: string): Promise<SanitizedGen
       const data = await response.json();
       return data as SanitizedGenerationBundle;
     }
-  } catch (err) {
-    console.warn(`[CommunityStorage] Could not fetch topic '${topicId}', falling back to mock driver:`, err);
+  } catch (err: any) {
+    if (err?.code !== 'ERR_INVALID_URL' && !err?.message?.includes('Failed to parse URL')) {
+      console.warn(`[CommunityStorage] Could not fetch topic '${topicId}', falling back to mock driver:`, err);
+    }
   }
   return await mockCommunityStorage.fetchTopic(topicId);
 }

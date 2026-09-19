@@ -325,7 +325,7 @@ describe('Tier 5 Adversarial Security & Edge Hardening Suite (M6 Challenger 2)',
       expect(infographicPrompt).toContain('Tier 2: Structural chassis');
       expect(infographicPrompt).toContain('Tier 3: Core operational mechanism');
       expect(infographicPrompt).toContain('Tier 4: Internal sub-components');
-      expect(infographicPrompt).toContain('Isometric Leader Callout Lines');
+      expect(infographicPrompt).toContain('Pristine 3D Deconstruction');
       expect(infographicPrompt).toContain('Internal Cutaways & Cross-Sections');
 
       // 2. Verify Veo Prompt contains 4-phase kinematic transitions & frame alignment

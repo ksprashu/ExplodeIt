@@ -2,11 +2,13 @@ import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { GenerationItem, ComponentPart, GenerationStatus } from '../types';
 import { MODEL_REGISTRY } from '../constants';
+import { getCanonicalExplorationUrl, copyToClipboard } from '../services/urlState';
 
-interface DisplayAreaProps {
+export interface DisplayAreaProps {
   item: GenerationItem | null;
   status: GenerationStatus;
   onBackToShowcase?: () => void;
+  onShare?: (url: string) => void;
 }
 
 const getModelLabel = (modelId: string | undefined, defaultLabel: string): string => {
@@ -14,30 +16,70 @@ const getModelLabel = (modelId: string | undefined, defaultLabel: string): strin
   return MODEL_REGISTRY[modelId]?.displayName || modelId.toUpperCase();
 };
 
-const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status, onBackToShowcase }) => {
+const formatAudioTime = (seconds: number): string => {
+  if (!seconds || isNaN(seconds) || !isFinite(seconds) || seconds < 0) return '0:00';
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+};
+
+const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status, onBackToShowcase, onShare }) => {
   const [modalImage, setModalImage] = useState<string | null>(null);
   const [modalVideo, setModalVideo] = useState<string | null>(null);
   const [selectedComponent, setSelectedComponent] = useState<ComponentPart | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [copyFeedback, setCopyFeedback] = useState(false);
+  const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [showOverlays, setShowOverlays] = useState(true);
+  const [hoveredPartIndex, setHoveredPartIndex] = useState<number | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioInstanceRef = useRef<HTMLAudioElement | null>(null);
+  const prevItemIdRef = useRef<string | null>(null);
+  const isSeekingRef = useRef(false);
+
+  const getPartAnchor = (index: number, total: number) => {
+    const isLeft = index < Math.ceil(total / 2);
+    const sideIndex = isLeft ? index : index - Math.ceil(total / 2);
+    const sideCount = isLeft ? Math.ceil(total / 2) : total - Math.ceil(total / 2);
+    const yPercent = 20 + (sideIndex / Math.max(1, sideCount - 1)) * 60;
+    const xPercent = isLeft ? 15 : 85;
+    const targetX = isLeft ? 35 : 65;
+    const targetY = yPercent;
+    return { x: xPercent, y: yPercent, targetX, targetY, isLeft };
+  };
 
   useEffect(() => {
     // Reset audio state when item changes
-    const audio = audioInstanceRef.current || audioRef.current;
-    if (audio) {
+    if (prevItemIdRef.current !== null && prevItemIdRef.current !== item?.id) {
+      const audio = audioInstanceRef.current || audioRef.current;
+      if (audio) {
         audio.pause();
         audio.removeAttribute('src');
         audio.load();
+        if (item?.audioUrl) {
+          audio.src = item.audioUrl;
+          audio.load();
+        }
+      }
+      setIsPlaying(false);
+      setCurrentTime(0);
+      setDuration(0);
+      isSeekingRef.current = false;
+      setSelectedComponent(null);
+      setModalImage(null);
+      setModalVideo(null);
     }
-    setIsPlaying(false);
-    setSelectedComponent(null);
-    setModalImage(null);
-    setModalVideo(null);
-  }, [item?.id]);
+    prevItemIdRef.current = item?.id ?? null;
+  }, [item?.id, item?.audioUrl]);
 
   useEffect(() => {
     return () => {
+      if (copyTimeoutRef.current) {
+        clearTimeout(copyTimeoutRef.current);
+        copyTimeoutRef.current = null;
+      }
       const el = audioInstanceRef.current;
       if (el) {
         el.pause();
@@ -49,28 +91,61 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status, onBackToShowcas
   }, []);
 
   const toggleAudio = () => {
-      if (!audioRef.current) return;
+      const audio = audioInstanceRef.current || audioRef.current;
+      if (!audio) return;
       if (isPlaying) {
-          audioRef.current.pause();
+          audio.pause();
+          setIsPlaying(false);
       } else {
-          if (!audioRef.current.getAttribute('src') && item?.audioUrl) {
-              audioRef.current.src = item.audioUrl;
-              audioRef.current.load();
+          if (!audio.getAttribute('src') && item?.audioUrl) {
+              audio.src = item.audioUrl;
+              audio.load();
           }
-          audioRef.current.play().catch(() => {});
+          if (audio.currentTime >= audio.duration && isFinite(audio.duration) && audio.duration > 0) {
+              audio.currentTime = 0;
+              setCurrentTime(0);
+          }
+          setIsPlaying(true);
+          audio.play().catch(() => {
+              setIsPlaying(false);
+          });
       }
-      setIsPlaying(!isPlaying);
   };
 
   const resetAudio = () => {
-      if (!audioRef.current) return;
-      if (!audioRef.current.getAttribute('src') && item?.audioUrl) {
-          audioRef.current.src = item.audioUrl;
-          audioRef.current.load();
+      const audio = audioInstanceRef.current || audioRef.current;
+      if (!audio) return;
+      if (!audio.getAttribute('src') && item?.audioUrl) {
+          audio.src = item.audioUrl;
+          audio.load();
       }
-      audioRef.current.currentTime = 0;
-      audioRef.current.play().catch(() => {});
+      audio.currentTime = 0;
+      setCurrentTime(0);
+      isSeekingRef.current = false;
       setIsPlaying(true);
+      audio.play().catch(() => {
+          setIsPlaying(false);
+      });
+  };
+
+  const handleSeek = (e: React.ChangeEvent<HTMLInputElement> | React.FormEvent<HTMLInputElement>) => {
+      if (duration <= 0) return;
+      const target = e.target as HTMLInputElement;
+      const parsedTime = parseFloat(target.value);
+      const newTime = isNaN(parsedTime) ? 0 : Math.max(0, duration > 0 ? Math.min(parsedTime, duration) : Math.max(0, parsedTime));
+      setCurrentTime(newTime);
+      const audio = audioInstanceRef.current || audioRef.current;
+      if (audio) {
+          if (!audio.getAttribute('src') && item?.audioUrl) {
+              audio.src = item.audioUrl;
+              audio.load();
+          }
+          try {
+              audio.currentTime = newTime;
+          } catch {
+              // Ignore if audio readyState is HAVE_NOTHING or decode pending
+          }
+      }
   };
 
   if (!item || !item.plan) {
@@ -169,8 +244,17 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status, onBackToShowcas
   const renderRightMedia = () => {
       // 1. Show Infographic
       if (infographicUrl) {
+           const activeParts = (components && components.length > 0)
+             ? components
+             : (plan.componentList || []).map(name => ({
+                 name,
+                 shortDescription: 'Inspecting component details...',
+                 composition: 'Physical Component',
+                 detailedContent: ''
+               }));
+
            return (
-             <div className="relative group w-full h-full">
+             <div className="relative group w-full h-full overflow-hidden">
                 <img 
                     src={infographicUrl} 
                     alt="Infographic View" 
@@ -180,8 +264,94 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status, onBackToShowcas
                 <div className="absolute top-4 left-4 bg-black/70 backdrop-blur px-3 py-1 rounded-full text-xs font-mono text-purple-400 border border-purple-500/30 z-10 pointer-events-none">
                      {getModelLabel(item?.config?.infographic, 'GEMINI 3 PRO IMAGE').toUpperCase()}
                 </div>
+
+                {/* HUD Toggle Control */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowOverlays(prev => !prev);
+                  }}
+                  className="absolute top-4 right-4 bg-black/70 hover:bg-black/90 backdrop-blur px-2.5 py-1 rounded-full text-[10px] font-mono border border-slate-700 text-slate-300 hover:text-cyan-300 transition-colors z-20 cursor-pointer"
+                >
+                  {showOverlays ? 'HUD: ON' : 'HUD: OFF'}
+                </button>
+
+                {/* Interactive SVG & HTML Layer */}
+                {showOverlays && activeParts.length > 0 && (
+                  <div className="absolute inset-0 pointer-events-none z-10">
+                    {/* SVG Leader Lines */}
+                    <svg className="absolute inset-0 w-full h-full pointer-events-none">
+                      {activeParts.map((_, idx) => {
+                        const anchor = getPartAnchor(idx, activeParts.length);
+                        const isHovered = hoveredPartIndex === idx;
+                        return (
+                          <line
+                            key={`line-${idx}`}
+                            x1={`${anchor.x}%`}
+                            y1={`${anchor.y}%`}
+                            x2={`${anchor.targetX}%`}
+                            y2={`${anchor.targetY}%`}
+                            stroke={isHovered ? '#22d3ee' : 'rgba(148, 163, 184, 0.35)'}
+                            strokeWidth={isHovered ? 2 : 1}
+                            strokeDasharray={isHovered ? 'none' : '4 4'}
+                            className="transition-all duration-200"
+                          />
+                        );
+                      })}
+                    </svg>
+
+                    {/* HTML Hotspot Badges */}
+                    {activeParts.map((part, idx) => {
+                      const anchor = getPartAnchor(idx, activeParts.length);
+                      const isHovered = hoveredPartIndex === idx;
+                      return (
+                        <div
+                          key={`badge-${idx}`}
+                          style={{ left: `${anchor.x}%`, top: `${anchor.y}%` }}
+                          className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-auto group/badge"
+                          onMouseEnter={() => setHoveredPartIndex(idx)}
+                          onMouseLeave={() => setHoveredPartIndex(null)}
+                        >
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedComponent(part);
+                            }}
+                            className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full font-mono text-[10px] font-bold border transition-all duration-200 cursor-pointer shadow-lg backdrop-blur-md ${
+                              isHovered
+                                ? 'bg-cyan-950/90 border-cyan-400 text-cyan-200 scale-110 shadow-cyan-500/30 ring-2 ring-cyan-400/50'
+                                : 'bg-black/75 border-slate-700 text-slate-300 hover:border-cyan-500/60'
+                            }`}
+                            title={`Click to inspect ${part.name}`}
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping"></span>
+                            <span>{String(idx + 1).padStart(2, '0')}</span>
+                          </button>
+
+                          {/* Hover Tooltip Card */}
+                          {isHovered && (
+                            <div className={`absolute z-30 w-52 p-2.5 rounded-xl bg-slate-900/95 border border-cyan-500/50 shadow-2xl backdrop-blur-md text-left text-xs top-full mt-2 pointer-events-none ${
+                              anchor.isLeft ? 'left-0' : 'right-0'
+                            }`}>
+                              <div className="font-bold text-white truncate">{part.name}</div>
+                              {part.composition && (
+                                <div className="text-[10px] text-cyan-300 font-mono mt-0.5">{part.composition}</div>
+                              )}
+                              {part.shortDescription && (
+                                <div className="text-[11px] text-slate-300 mt-1 line-clamp-2">{part.shortDescription}</div>
+                              )}
+                              <div className="text-[9px] text-cyan-400 mt-2 font-semibold">Click for Deep Dive →</div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
              </div>
-          );
+           );
       }
       
       // 2. Loading Infographic
@@ -234,6 +404,29 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status, onBackToShowcas
       return null;
   };
 
+  const handleShareClick = async () => {
+    if (!item?.id) return;
+    const url = getCanonicalExplorationUrl(item.id);
+    const copied = await copyToClipboard(url);
+    if (copied) {
+      if (copyTimeoutRef.current) {
+        clearTimeout(copyTimeoutRef.current);
+      }
+      setCopyFeedback(true);
+      copyTimeoutRef.current = setTimeout(() => {
+        setCopyFeedback(false);
+        copyTimeoutRef.current = null;
+      }, 2500);
+      if (onShare) {
+        onShare(url);
+      }
+    } else {
+      if (onShare) {
+        onShare('Could not copy link to clipboard. Please copy from address bar.');
+      }
+    }
+  };
+
   return (
     <div className="space-y-12 animate-fade-in pb-10">
       {/* Breadcrumb Navigation (rendered when onBackToShowcase is provided) */}
@@ -269,13 +462,14 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status, onBackToShowcas
                 </div>
                 <h2 className="text-4xl md:text-6xl font-black text-white tracking-tight">{plan.displayTitle}</h2>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center gap-4">
                 {audioUrl ? (
-                    <div className="bg-slate-900 border border-slate-700 rounded-full p-1 pr-4 flex items-center gap-2 shadow-lg shadow-purple-900/20">
+                    <div className="bg-slate-900 border border-slate-700 rounded-full p-1.5 sm:p-1 pr-4 flex items-center gap-2.5 sm:gap-3 shadow-lg shadow-purple-900/20 max-w-full">
                         <button 
                             onClick={toggleAudio}
-                            className="w-10 h-10 rounded-full bg-purple-600 hover:bg-purple-500 text-white flex items-center justify-center transition-all"
+                            className="w-10 h-10 shrink-0 rounded-full bg-purple-600 hover:bg-purple-500 text-white flex items-center justify-center transition-all cursor-pointer shadow-md"
                             title={isPlaying ? "Pause" : "Play"}
+                            aria-label={isPlaying ? "Pause" : "Play"}
                         >
                             {isPlaying ? (
                                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/></svg>
@@ -286,25 +480,103 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status, onBackToShowcas
                         
                         <button 
                             onClick={resetAudio}
-                            className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition-all"
+                            className="w-8 h-8 shrink-0 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition-all cursor-pointer"
                             title="Restart Audio"
+                            aria-label="Restart Audio"
                         >
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                             </svg>
                         </button>
 
-                        <div className="flex flex-col ml-1">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Audio Guide</span>
-                            <span className="text-xs text-purple-300 font-medium">Narrated by {plan.audioVibe?.voiceName || 'Gemini'}</span>
+                        <div className="flex flex-col justify-center min-w-[140px] sm:min-w-[170px] md:min-w-[200px]">
+                            <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-1.5 truncate">
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">Audio Guide</span>
+                                    <span className="text-[10px] text-purple-300 font-medium hidden md:inline truncate">• {plan.audioVibe?.voiceName || 'Gemini'}</span>
+                                </div>
+                                <span className="text-[10px] font-mono text-purple-300 whitespace-nowrap tabular-nums">
+                                    {formatAudioTime(duration > 0 ? Math.min(currentTime, duration) : currentTime)} / {formatAudioTime(duration)}
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-2 mt-0.5">
+                                <input 
+                                    type="range"
+                                    min={0}
+                                    max={duration > 0 ? duration : 100}
+                                    step={0.1}
+                                    disabled={duration <= 0}
+                                    value={Math.min(currentTime, duration > 0 ? duration : 100)}
+                                    onChange={handleSeek}
+                                    onInput={handleSeek}
+                                    onPointerDown={() => { isSeekingRef.current = true; }}
+                                    onPointerUp={() => { isSeekingRef.current = false; }}
+                                    onPointerCancel={() => { isSeekingRef.current = false; }}
+                                    onTouchStart={() => { isSeekingRef.current = true; }}
+                                    onTouchEnd={() => { isSeekingRef.current = false; }}
+                                    onTouchCancel={() => { isSeekingRef.current = false; }}
+                                    onMouseDown={() => { isSeekingRef.current = true; }}
+                                    onMouseUp={() => { isSeekingRef.current = false; }}
+                                    onKeyDown={() => { isSeekingRef.current = true; }}
+                                    onKeyUp={() => { isSeekingRef.current = false; }}
+                                    onBlur={() => { isSeekingRef.current = false; }}
+                                    aria-label="Audio scrubber"
+                                    aria-valuemin={0}
+                                    aria-valuemax={duration > 0 ? duration : 100}
+                                    aria-valuenow={Math.round((duration > 0 ? Math.min(currentTime, duration) : currentTime) * 10) / 10}
+                                    aria-valuetext={`${formatAudioTime(duration > 0 ? Math.min(currentTime, duration) : currentTime)} of ${formatAudioTime(duration)}`}
+                                    className={`w-full h-1.5 bg-slate-700 rounded-lg appearance-none accent-purple-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 focus-visible:ring-offset-1 focus-visible:ring-offset-slate-900 ${
+                                        duration <= 0 ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+                                    }`}
+                                />
+                            </div>
                         </div>
+
                         <audio 
                             ref={(el) => {
                                 audioRef.current = el;
-                                if (el) audioInstanceRef.current = el;
+                                if (el) {
+                                    audioInstanceRef.current = el;
+                                    if (isFinite(el.duration) && el.duration > 0) {
+                                        setDuration(el.duration);
+                                    }
+                                }
                             }} 
                             src={audioUrl} 
-                            onEnded={() => setIsPlaying(false)} 
+                            preload="metadata"
+                            onPlay={() => setIsPlaying(true)}
+                            onPause={() => setIsPlaying(false)}
+                            onTimeUpdate={() => {
+                                const audio = audioInstanceRef.current || audioRef.current;
+                                if (audio) {
+                                    if (!isSeekingRef.current) {
+                                        setCurrentTime(audio.currentTime);
+                                    }
+                                    if (isFinite(audio.duration) && audio.duration > 0 && duration !== audio.duration) {
+                                        setDuration(audio.duration);
+                                    }
+                                }
+                            }}
+                            onLoadedMetadata={() => {
+                                const audio = audioInstanceRef.current || audioRef.current;
+                                if (audio && isFinite(audio.duration) && audio.duration > 0) {
+                                    setDuration(audio.duration);
+                                }
+                            }}
+                            onDurationChange={() => {
+                                const audio = audioInstanceRef.current || audioRef.current;
+                                if (audio && isFinite(audio.duration) && audio.duration > 0) {
+                                    setDuration(audio.duration);
+                                }
+                            }}
+                            onEnded={() => {
+                                setIsPlaying(false);
+                                setCurrentTime(0);
+                                const audio = audioInstanceRef.current || audioRef.current;
+                                if (audio) {
+                                    audio.currentTime = 0;
+                                }
+                            }} 
                             className="hidden"
                         />
                     </div>
@@ -321,9 +593,37 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status, onBackToShowcas
                 <div className="bg-slate-900/50 px-4 py-2 rounded-lg border border-slate-800">
                     <span className="text-slate-400 text-sm">Curated by </span>
                     <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-400 font-bold">
-                        {getModelLabel(item?.config?.planning, 'Gemini 3.1 Pro')}
+                        {getModelLabel(item?.config?.planning, 'Gemini 3.8 Flash')}
                     </span>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={handleShareClick}
+                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl border text-xs font-semibold transition-all duration-200 cursor-pointer shadow-sm ${
+                    copyFeedback
+                      ? 'bg-emerald-950/80 border-emerald-500/60 text-emerald-300 shadow-emerald-500/20 ring-1 ring-emerald-400/30'
+                      : 'bg-slate-900/80 hover:bg-slate-800 border-slate-700 hover:border-cyan-500/50 text-slate-200 hover:text-cyan-300'
+                  }`}
+                  title="Copy shareable link to clipboard"
+                  aria-label={copyFeedback ? "Link Copied to clipboard" : "Share or Copy Link"}
+                >
+                  {copyFeedback ? (
+                    <>
+                      <svg className="w-4 h-4 text-emerald-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                      <span className="font-mono">Copied to clipboard!</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4 text-cyan-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                      </svg>
+                      <span>Copy Link</span>
+                    </>
+                  )}
+                </button>
             </div>
         </div>
 
@@ -383,7 +683,13 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status, onBackToShowcas
                     <button 
                         key={idx} 
                         onClick={() => setSelectedComponent(part)}
-                        className="group flex flex-col items-start text-left bg-slate-900/40 hover:bg-slate-800 p-5 rounded-xl border border-slate-800 hover:border-cyan-500/50 transition-all duration-300 hover:shadow-lg hover:shadow-cyan-500/10 hover:-translate-y-1 h-full"
+                        onMouseEnter={() => setHoveredPartIndex(idx)}
+                        onMouseLeave={() => setHoveredPartIndex(null)}
+                        className={`group flex flex-col items-start text-left p-5 rounded-xl border transition-all duration-300 hover:shadow-lg hover:-translate-y-1 h-full ${
+                          hoveredPartIndex === idx
+                            ? 'bg-slate-800 border-cyan-400 shadow-cyan-500/20 ring-1 ring-cyan-400/40'
+                            : 'bg-slate-900/40 hover:bg-slate-800 border-slate-800 hover:border-cyan-500/50 hover:shadow-cyan-500/10'
+                        }`}
                     >
                         <div className="flex items-center justify-between w-full mb-3">
                             <span className="text-[10px] font-mono text-slate-500 bg-slate-950 px-2 py-1 rounded-full border border-slate-800 group-hover:border-cyan-500/30 transition-colors">

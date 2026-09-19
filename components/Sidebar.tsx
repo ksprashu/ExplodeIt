@@ -43,7 +43,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   }, [currentConfig]);
 
   return (
-    <aside className="w-full md:w-80 bg-slate-900 border-r border-slate-800 flex flex-col h-screen sticky top-0 overflow-hidden shrink-0 shadow-2xl z-20">
+    <aside className="w-full md:w-80 bg-slate-900 border-r border-slate-800 flex flex-col h-screen h-[100dvh] sticky top-0 overflow-hidden shrink-0 shadow-2xl z-20">
       <div className="p-8 border-b border-slate-800 flex flex-col items-start gap-4 bg-slate-950/50">
         <div className="w-12 h-12 bg-gradient-to-tr from-cyan-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-cyan-500/20">
             <svg viewBox="0 0 24 24" fill="none" className="w-8 h-8 text-white" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

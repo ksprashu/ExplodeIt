@@ -5,25 +5,8 @@ import * as Constants from '../../constants';
  * Upgraded Kinematic Prompt Generators (Contract Specification from PROJECT.md & ORIGINAL_REQUEST §R3)
  */
 export const CONTRACT_PROMPTS = {
-  // Infographic with 4-tier separation, isometric leader lines, cutaways, and 5600K studio illumination
-  INFOGRAPHIC_UPGRADED: (item: string, style: string, parts: string[], domain: string, metaphor: string) =>
-    `Create a high-fidelity educational infographic: A "${metaphor}" of ${item}.
-
-**Context:** This is a ${domain} topic.
-**Key Components:** ${parts.join(', ')}.
-**Visual Style:** ${style}.
-
-**Anatomical Deconstruction Invariants:**
-1. **Multi-Tiered Component Separation:** Organize parts across 4 explicit depth tiers:
-   - Tier 1: Outer casing, protective shell, enclosure, or facade.
-   - Tier 2: Structural chassis, mounting brackets, skeleton, or sub-frame.
-   - Tier 3: Core operational mechanism, power train, circuitry, or data pipeline.
-   - Tier 4: Internal sub-components, micro-mechanics, chips, or cellular organelles.
-2. **Internal Cutaways & Cross-Sections:** Provide revealing section views exposing interior cavities and internal working surfaces.
-3. **Isometric Leader Callout Lines:** Clean, fine leader lines projecting outward isometrically with technical callout anchors.
-4. **Studio Illumination & Floating Modularity:** High-contrast 5600K daylight-balanced key illumination, soft ambient fill, floating suspended parts with distinct drop shadows.
-
-Composition: Centered, clean, museum-grade technical illustration, high resolution.`,
+  // Direct reference to production prompt generator
+  INFOGRAPHIC_UPGRADED: Constants.PROMPTS.INFOGRAPHIC,
 
   // Veo video assembly prompt with 4-phase kinematics and start/end frame alignment
   VIDEO_ASSEMBLY_UPGRADED: (item: string, domain: string, metaphor: string) =>
@@ -48,7 +31,7 @@ Composition: Centered, clean, museum-grade technical illustration, high resoluti
 describe('Contract: Prompt Engineering Invariants (FEAT-04, FEAT-05)', () => {
   describe('Tier 1: Feature Coverage — Infographic Prompt Invariants (FEAT-04)', () => {
     it('test_feat04_prompt_contains_4tier_separation: asserts 4 explicit depth tiers exist in prompt', () => {
-      const prompt = CONTRACT_PROMPTS.INFOGRAPHIC_UPGRADED(
+      const prompt = Constants.PROMPTS.INFOGRAPHIC(
         'Mechanical Watch',
         'Technical Blueprint',
         ['Balance Wheel', 'Escapement', 'Mainspring', 'Dial'],
@@ -63,8 +46,8 @@ describe('Contract: Prompt Engineering Invariants (FEAT-04, FEAT-05)', () => {
       expect(prompt).toContain('Tier 4');
     });
 
-    it('test_feat04_prompt_contains_isometric_leader_lines: requires leader callout lines in prompt', () => {
-      const prompt = CONTRACT_PROMPTS.INFOGRAPHIC_UPGRADED(
+    it('test_feat04_prompt_prohibits_2d_text_and_leader_lines: asserts prohibition of 2D text, leader lines, and HUDs', () => {
+      const prompt = Constants.PROMPTS.INFOGRAPHIC(
         'Turbofan Jet Engine',
         'Studio Shot',
         ['Fan Blades', 'Compressor', 'Combustion Chamber', 'Turbine'],
@@ -72,12 +55,20 @@ describe('Contract: Prompt Engineering Invariants (FEAT-04, FEAT-05)', () => {
         'Exploded View'
       );
 
-      expect(prompt.toLowerCase()).toContain('isometric leader callout lines');
-      expect(prompt.toLowerCase()).toContain('callout anchors');
+      expect(prompt).toContain('Pristine 3D Deconstruction (NO 2D Annotations)');
+      expect(prompt).toContain('STRICT PROHIBITION: NO 2D text, no labels, no leader lines, no HUDs, no graphic callouts');
+      expect(prompt.toLowerCase()).not.toContain('isometric leader callout lines');
+    });
+
+    it('test_feat04_assembled_prompt_enforces_perspective_lighting_and_no_holograms: asserts 45° isometric angle and prohibits arbitrary tablets', () => {
+      const assembled = Constants.PROMPTS.ASSEMBLED('Camera', 'Vintage Camera', 'Rangefinder', 'PHYSICAL');
+      expect(assembled).toContain('Identical 45° Isometric Perspective');
+      expect(assembled).toContain('5600K');
+      expect(assembled).toContain('DO NOT generate arbitrary futuristic tablets');
     });
 
     it('test_feat04_prompt_contains_internal_cutaways: mandates cutaways and internal cross-sections', () => {
-      const prompt = CONTRACT_PROMPTS.INFOGRAPHIC_UPGRADED(
+      const prompt = Constants.PROMPTS.INFOGRAPHIC(
         'Human Heart',
         'Anatomical Medical Render',
         ['Aorta', 'Left Ventricle', 'Right Ventricle', 'Mitral Valve'],
@@ -90,7 +81,7 @@ describe('Contract: Prompt Engineering Invariants (FEAT-04, FEAT-05)', () => {
     });
 
     it('test_feat04_prompt_contains_5600k_studio_lighting: specifies balanced studio illumination', () => {
-      const prompt = CONTRACT_PROMPTS.INFOGRAPHIC_UPGRADED(
+      const prompt = Constants.PROMPTS.INFOGRAPHIC(
         'DSLR Lens',
         'Hyper-realistic',
         ['Aperture Blades', 'Front Element', 'Focus Ring'],
@@ -103,8 +94,8 @@ describe('Contract: Prompt Engineering Invariants (FEAT-04, FEAT-05)', () => {
     });
 
     it('test_feat04_prompt_adapts_to_domain_type: adapts context tokens for different domains', () => {
-      const physicalPrompt = CONTRACT_PROMPTS.INFOGRAPHIC_UPGRADED('Bicycle', 'Clean', ['Frame'], 'PHYSICAL', 'Exploded View');
-      const softwarePrompt = CONTRACT_PROMPTS.INFOGRAPHIC_UPGRADED('PostgreSQL', 'Isometric', ['Buffer Pool'], 'SOFTWARE', 'Architecture Diagram');
+      const physicalPrompt = Constants.PROMPTS.INFOGRAPHIC('Bicycle', 'Clean', ['Frame'], 'PHYSICAL', 'Exploded View');
+      const softwarePrompt = Constants.PROMPTS.INFOGRAPHIC('PostgreSQL', 'Isometric', ['Buffer Pool'], 'SOFTWARE', 'Architecture Diagram');
 
       expect(physicalPrompt).toContain('**Context:** This is a PHYSICAL topic');
       expect(softwarePrompt).toContain('**Context:** This is a SOFTWARE topic');
@@ -145,14 +136,14 @@ describe('Contract: Prompt Engineering Invariants (FEAT-04, FEAT-05)', () => {
 
   describe('Tier 2: Boundary & Corner Cases', () => {
     it('test_feat04_boundary_single_component_prompt: single component still generates valid structure', () => {
-      const prompt = CONTRACT_PROMPTS.INFOGRAPHIC_UPGRADED('Monolith', 'Minimal', ['Solid Core'], 'PHYSICAL', 'Exploded View');
+      const prompt = Constants.PROMPTS.INFOGRAPHIC('Monolith', 'Minimal', ['Solid Core'], 'PHYSICAL', 'Exploded View');
       expect(prompt).toContain('**Key Components:** Solid Core');
       expect(prompt).toContain('Multi-Tiered Component Separation');
     });
 
     it('test_feat04_boundary_extreme_component_count: 25 components format cleanly without syntax error', () => {
       const parts = Array.from({ length: 25 }, (_, i) => `Component_${i + 1}`);
-      const prompt = CONTRACT_PROMPTS.INFOGRAPHIC_UPGRADED('Complex Robot', 'Technical', parts, 'PHYSICAL', 'Exploded View');
+      const prompt = Constants.PROMPTS.INFOGRAPHIC('Complex Robot', 'Technical', parts, 'PHYSICAL', 'Exploded View');
       expect(prompt).toContain('Component_1');
       expect(prompt).toContain('Component_25');
       expect(prompt.length).toBeGreaterThan(500);
@@ -160,7 +151,7 @@ describe('Contract: Prompt Engineering Invariants (FEAT-04, FEAT-05)', () => {
 
     it('test_feat04_boundary_special_characters_in_topic: handles quotes and unicode safely', () => {
       const dirtyTopic = 'Robot "Alpha & Omega" <v2.0> 🤖';
-      const prompt = CONTRACT_PROMPTS.INFOGRAPHIC_UPGRADED(dirtyTopic, 'Studio', ['Arm'], 'PHYSICAL', 'Exploded View');
+      const prompt = Constants.PROMPTS.INFOGRAPHIC(dirtyTopic, 'Studio', ['Arm'], 'PHYSICAL', 'Exploded View');
       expect(prompt).toContain(dirtyTopic);
       expect(prompt).not.toContain('[object Object]');
     });

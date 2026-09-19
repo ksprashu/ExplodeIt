@@ -38,6 +38,10 @@ const getAI = (): any => {
             config: {
               responseMimeType: params.response_format?.mime_type,
               responseSchema: params.response_format?.schema,
+              ...(params.thinkingConfig ? { thinkingConfig: params.thinkingConfig } : {}),
+              ...(params.generation_config?.thinking_level 
+                ? { thinking_level: params.generation_config.thinking_level } 
+                : (params.thinkingConfig?.thinkingLevel ? { thinking_level: params.thinkingConfig.thinkingLevel } : {})),
             }
           });
           return {
@@ -189,6 +193,9 @@ export interface GenerateVideoOptions {
     mode?: 'assembly' | 'disassembly';
     model?: string;
     stageConfig?: Partial<StageModelConfig>;
+    plan?: ObjectPlan;
+    videoAssemblyPrompt?: string;
+    videoDisassemblyPrompt?: string;
 }
 
 // 2. PLAN OBJECT (Gemini 3.1 Pro Preview)
@@ -206,6 +213,8 @@ export const planObject = async (
             model: model,
             input: PROMPTS.PLAN_OBJECT(itemName),
             tools: [{ type: "google_search" }],
+            thinkingConfig: { thinkingLevel: 'HIGH' },
+            generation_config: { thinking_level: 'HIGH' },
             response_format: {
                 type: "text",
                 mime_type: "application/json",
@@ -541,7 +550,8 @@ export const generateVideo = async (
     metaphor: string, 
     assembledUrl: string, 
     infographicUrl: string,
-    stageModelOverride?: string | Partial<StageModelConfig> | GenerateVideoOptions
+    stageModelOverride?: string | Partial<StageModelConfig> | GenerateVideoOptions,
+    plan?: ObjectPlan
 ): Promise<{ url: string; usage: TokenUsage }> => {
     const ai = getAI();
     let model = MODEL_VIDEO;
@@ -568,9 +578,14 @@ export const generateVideo = async (
     // For disassembly: start frame is assembled product, end frame is exploded infographic
     const startFrameBytes = isDisassembly ? cleanAssembled : cleanInfographic;
     const endFrameBytes = isDisassembly ? cleanInfographic : cleanAssembled;
+    
+    const resolvedPlan = plan || (stageModelOverride && typeof stageModelOverride === 'object' && 'plan' in stageModelOverride ? (stageModelOverride as GenerateVideoOptions).plan : undefined);
+    const customAssemblyPrompt = (stageModelOverride && typeof stageModelOverride === 'object' && 'videoAssemblyPrompt' in stageModelOverride) ? (stageModelOverride as GenerateVideoOptions).videoAssemblyPrompt : undefined;
+    const customDisassemblyPrompt = (stageModelOverride && typeof stageModelOverride === 'object' && 'videoDisassemblyPrompt' in stageModelOverride) ? (stageModelOverride as GenerateVideoOptions).videoDisassemblyPrompt : undefined;
+
     const promptText = isDisassembly 
-        ? PROMPTS.VIDEO_DISASSEMBLY(itemName, domain, metaphor)
-        : PROMPTS.VIDEO_ASSEMBLY(itemName, domain, metaphor);
+        ? (resolvedPlan?.videoDisassemblyPrompt || customDisassemblyPrompt || PROMPTS.VIDEO_DISASSEMBLY(itemName, domain, metaphor))
+        : (resolvedPlan?.videoAssemblyPrompt || customAssemblyPrompt || PROMPTS.VIDEO_ASSEMBLY(itemName, domain, metaphor));
 
     return callWithRetry(async () => {
         let operation = await ai.models.generateVideos({

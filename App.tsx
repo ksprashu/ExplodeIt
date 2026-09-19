@@ -44,9 +44,17 @@ import {
   fetchCommunityCatalog,
   fetchCommunityTopic,
   preloadCommunityTopicMedia,
+  generateTopicSlug,
 } from './services/communityStorage';
 import { SEED_COMMUNITY_CATALOG } from './services/mockCommunityStorage';
 import { revokeAllObjectURLs } from './services/mediaCache';
+import { 
+  parseExplorationQueryParam, 
+  findMatchingCatalogItem, 
+  syncUrlToExploration, 
+  getCanonicalExplorationUrl, 
+  copyToClipboard 
+} from './services/urlState';
 
 const STORAGE_PREFS_KEY = 'explodeit_model_preferences';
 const STORAGE_CONTRACT_KEY = 'explodeit_model_config_v1';
@@ -95,6 +103,54 @@ export function saveModelPreferences(tier: ModelTier, config: StageModelConfig):
     }
   } catch (err) {
     console.warn("Unable to persist model preferences to localStorage:", err);
+  }
+}
+
+/**
+ * Safely retrieve session API key with graceful error suppression
+ * if browser privacy extensions, sandbox permissions, or iframe restrictions block sessionStorage.
+ */
+export function getSessionApiKey(): string | null {
+  try {
+    if (typeof sessionStorage !== 'undefined') {
+      const stored = sessionStorage.getItem('gemini_api_key');
+      return stored && stored.trim().length > 0 ? stored.trim() : null;
+    }
+  } catch (e) {
+    console.warn("Storage access restricted, falling back to in-memory key:", e);
+  }
+  return null;
+}
+
+export function safeSetSessionApiKey(key: string): boolean {
+  try {
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.setItem('gemini_api_key', key);
+      return true;
+    }
+  } catch (e) {
+    console.warn("Failed to save key to sessionStorage (falling back to in-memory state):", e);
+  }
+  return false;
+}
+
+export function safeRemoveSessionApiKey(): void {
+  try {
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.removeItem('gemini_api_key');
+    }
+  } catch (e) {
+    console.warn("Failed to remove key from sessionStorage:", e);
+  }
+}
+
+export function safeRemoveLocalApiKey(): void {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem('gemini_api_key');
+    }
+  } catch (e) {
+    console.warn("Failed to clear localStorage:", e);
   }
 }
 
@@ -217,19 +273,32 @@ const App: React.FC = () => {
   const [currentId, setCurrentId] = useState<string | null>(null);
   const [status, setStatus] = useState<GenerationStatus>(GenerationStatus.IDLE);
   const [error, setError] = useState<string | null>(null);
+  const isProcessing = status !== GenerationStatus.IDLE && status !== GenerationStatus.COMPLETED && status !== GenerationStatus.FAILED;
   
+  // Navigation sequence token ref to prevent out-of-order race conditions on rapid navigations
+  const activeNavigationRef = React.useRef<number>(0);
+
+  // Synchronized state refs to prevent listener teardown/re-attachment churn on popstate
+  const isProcessingRef = React.useRef(isProcessing);
+  isProcessingRef.current = isProcessing;
+
+  const historyRef = React.useRef(history);
+  historyRef.current = history;
+
   // Model Tier & Configuration State
   const [modelPreferences, setModelPreferences] = useState<{ tier: ModelTier; config: StageModelConfig }>(() => loadModelPreferences());
   const [isModelSettingsOpen, setIsModelSettingsOpen] = useState(false);
 
   // API Key Management (Strict Session Isolation: SessionStorage ONLY)
-  const [apiKey, setApiKey] = useState<string | null>(null);
+  const [apiKey, setApiKey] = useState<string | null>(() => getSessionApiKey());
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [pendingPrompt, setPendingPrompt] = useState<{ prompt: string; withVideo: boolean } | null>(null);
+  const [pendingPrompt, setPendingPrompt] = useState<{ prompt: string; withVideo: boolean; isSurprise?: boolean } | null>(null);
 
   // Community Showcase Catalog State
   const [catalog, setCatalog] = useState<CommunityCatalogItem[]>(() => SEED_COMMUNITY_CATALOG);
-  const [catalogLoading, setCatalogLoading] = useState<boolean>(true);
+  const [catalogLoading, setCatalogLoading] = useState<boolean>(false);
+  const catalogRef = React.useRef(catalog);
+  catalogRef.current = catalog;
 
   // Community Contribution Modal & Toast Feedback State
   const [isContributeModalOpen, setIsContributeModalOpen] = useState(false);
@@ -240,9 +309,212 @@ const App: React.FC = () => {
     type: 'success' | 'error' | 'info';
   } | null>(null);
 
+  // Share Toast Feedback State
+  const [shareToast, setShareToast] = useState<{
+    visible: boolean;
+    message: string;
+  } | null>(null);
+  const shareTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // URL Deep Link Fallback Notice State
+  const [urlNotification, setUrlNotification] = useState<{
+    visible: boolean;
+    message: string;
+    type: 'info' | 'warning' | 'error';
+  } | null>(null);
+
+  const hydrateCatalogItem = async (
+    topic: CommunityCatalogItem,
+    options?: { isPopState?: boolean; navId?: number }
+  ): Promise<GenerationItem | null> => {
+    const navId = options?.navId ?? ++activeNavigationRef.current;
+    const existing = historyRef.current.find(h => h.id === topic.id);
+    if (existing) {
+      if (navId === activeNavigationRef.current) {
+        setCurrentId(topic.id);
+        setStatus(GenerationStatus.IDLE);
+        if (!options?.isPopState) {
+          syncUrlToExploration(topic.id, 'push');
+        } else {
+          syncUrlToExploration(topic.id, 'replace');
+        }
+      }
+      return existing;
+    }
+
+    // 1. Preload media assets into cache in parallel (zero API key required)
+    const preloadedMedia = await preloadCommunityTopicMedia(topic);
+    if (navId !== activeNavigationRef.current) {
+      return null;
+    }
+
+    // 2. Fetch full bundle if available on edge or mock driver
+    let bundle: SanitizedGenerationBundle | null = null;
+    try {
+      bundle = await fetchCommunityTopic(topic.id);
+    } catch (e) {
+      console.warn("[App] Could not fetch community topic bundle, using synthesized adaptation:", e);
+    }
+    if (navId !== activeNavigationRef.current) {
+      return null;
+    }
+
+    // 3. Adapt catalog item to full GenerationItem
+    const generationItem = adaptCatalogItemToGenerationItem(topic, preloadedMedia, bundle);
+
+    // 4. Update state: check cancellation BEFORE mutating history state
+    if (navId !== activeNavigationRef.current) {
+      return null;
+    }
+
+    setHistory(prev => [generationItem, ...prev.filter(h => h.id !== topic.id)]);
+    if (navId === activeNavigationRef.current) {
+      setCurrentId(generationItem.id);
+      setStatus(GenerationStatus.IDLE);
+      setError(null);
+      setUrlNotification(null);
+      if (!options?.isPopState) {
+        syncUrlToExploration(generationItem.id, 'push');
+      } else {
+        syncUrlToExploration(generationItem.id, 'replace');
+      }
+    }
+    return generationItem;
+  };
+
+  const hydrateFromIdentifier = async (
+    identifier: string,
+    options?: { isPopState?: boolean; navId?: number }
+  ): Promise<boolean> => {
+    const cleanId = (identifier || '').trim().replace(/^[/"]+|[/"]+$/g, '');
+    if (!cleanId) return false;
+    const navId = options?.navId ?? ++activeNavigationRef.current;
+
+    // 1. Check existing history (exact ID, lower ID, prefix slug, prompt slug, or display title slug)
+    const cleanLower = cleanId.toLowerCase();
+    const inHistory = historyRef.current.find(
+      h => h.id === cleanId ||
+           h.id.toLowerCase() === cleanLower ||
+           h.id.toLowerCase().startsWith(cleanLower + '-') ||
+           (h.prompt && generateTopicSlug(h.prompt) === cleanLower) ||
+           (h.plan && generateTopicSlug(h.plan.displayTitle) === cleanLower)
+    );
+    if (inHistory) {
+      if (navId === activeNavigationRef.current) {
+        setCurrentId(inHistory.id);
+        setStatus(GenerationStatus.IDLE);
+        setError(null);
+        setUrlNotification(null);
+        if (!options?.isPopState) {
+          syncUrlToExploration(inHistory.id, 'push');
+        } else {
+          syncUrlToExploration(inHistory.id, 'replace');
+        }
+      }
+      return true;
+    }
+
+    // 2. Search catalog in current state
+    let matchedCatalogItem = findMatchingCatalogItem(cleanId, catalogRef.current);
+
+    // 3. If not found in memory, try refreshing catalog from server / mock storage
+    if (!matchedCatalogItem) {
+      try {
+        const freshCatalog = await fetchCommunityCatalog();
+        if (navId !== activeNavigationRef.current) return false;
+        if (Array.isArray(freshCatalog) && freshCatalog.length > 0) {
+          setCatalog(freshCatalog);
+          matchedCatalogItem = findMatchingCatalogItem(cleanId, freshCatalog);
+        }
+      } catch (err) {
+        console.warn("[App] Could not fetch catalog during deep-link hydration:", err);
+      }
+    }
+
+    if (navId !== activeNavigationRef.current) return false;
+
+    // 4. If matched in catalog, hydrate it
+    if (matchedCatalogItem) {
+      try {
+        const res = await hydrateCatalogItem(matchedCatalogItem, { ...options, navId });
+        return res !== null;
+      } catch (err: any) {
+        console.warn(`[App] Error hydrating matched catalog item '${cleanId}':`, err);
+      }
+    }
+
+    if (navId !== activeNavigationRef.current) return false;
+
+    // 5. Try fetching direct topic bundle
+    try {
+      const bundle = await fetchCommunityTopic(cleanId);
+      if (navId !== activeNavigationRef.current) return false;
+      if (bundle && bundle.manifest) {
+        const syntheticCatalogItem: CommunityCatalogItem = {
+          id: bundle.manifest.id,
+          topic: bundle.manifest.topic,
+          timestamp: bundle.manifest.timestamp,
+          domain: bundle.manifest.domain,
+          metaphor: bundle.manifest.metaphor,
+          infographicUrl: '',
+          assembledUrl: '',
+          audioUrl: '',
+          videoUrl: undefined,
+          previewUrl: '',
+        };
+        const preloadedMedia = {
+          infographicUrl: '',
+          assembledUrl: '',
+          audioUrl: '',
+        };
+        const generationItem = adaptCatalogItemToGenerationItem(
+          syntheticCatalogItem,
+          preloadedMedia,
+          bundle
+        );
+        if (navId !== activeNavigationRef.current) return false;
+        setHistory(prev => [generationItem, ...prev.filter(h => h.id !== generationItem.id)]);
+        if (navId === activeNavigationRef.current) {
+          setCurrentId(generationItem.id);
+          setStatus(GenerationStatus.IDLE);
+          setError(null);
+          setUrlNotification(null);
+          if (!options?.isPopState) {
+            syncUrlToExploration(generationItem.id, 'push');
+          } else {
+            syncUrlToExploration(generationItem.id, 'replace');
+          }
+        }
+        return true;
+      }
+    } catch {
+      // Ignore direct fetch fallback error
+    }
+
+    if (navId !== activeNavigationRef.current) return false;
+
+    // 6. Identifier not found -> Graceful fallback to default landing/showcase view
+    setUrlNotification({
+      visible: true,
+      message: `Exploration "${cleanId}" not found. Showing community showcase.`,
+      type: 'info'
+    });
+    setCurrentId(null);
+    setStatus(GenerationStatus.IDLE);
+    syncUrlToExploration(null, 'replace');
+    return false;
+  };
+
   useEffect(() => {
     initializeApiKey();
     initGA();
+
+    // 1. Initial deep-link hydration if item/topic param exists in URL (query string or hash fallback)
+    const initialQuery = parseExplorationQueryParam();
+    if (initialQuery) {
+      const navId = ++activeNavigationRef.current;
+      hydrateFromIdentifier(initialQuery, { isPopState: true, navId });
+    }
 
     let isMounted = true;
     fetchCommunityCatalog()
@@ -267,7 +539,39 @@ const App: React.FC = () => {
     return () => {
       isMounted = false;
       window.removeEventListener('beforeunload', handleBeforeUnload);
+      if (shareTimeoutRef.current) {
+        clearTimeout(shareTimeoutRef.current);
+        shareTimeoutRef.current = null;
+      }
       revokeAllObjectURLs();
+    };
+  }, []);
+
+  const hydrateFromIdentifierRef = React.useRef(hydrateFromIdentifier);
+  hydrateFromIdentifierRef.current = hydrateFromIdentifier;
+
+  // 2. Bidirectional URL Synchronization for Browser Back/Forward (popstate)
+  // Register once on mount to prevent teardown/re-subscription gaps during state transitions
+  useEffect(() => {
+    const handlePopState = () => {
+      const navId = ++activeNavigationRef.current;
+      const queryId = parseExplorationQueryParam();
+      if (!queryId) {
+        setCurrentId(null);
+        setUrlNotification(null);
+        setError(null);
+        if (!isProcessingRef.current) {
+          setStatus(GenerationStatus.IDLE);
+        }
+        return;
+      }
+
+      hydrateFromIdentifierRef.current(queryId, { isPopState: true, navId });
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
     };
   }, []);
 
@@ -278,14 +582,13 @@ const App: React.FC = () => {
     try {
       if (typeof localStorage !== 'undefined') {
         const legacyKey = localStorage.getItem('gemini_api_key');
-        if (legacyKey) {
-          if (typeof sessionStorage !== 'undefined') {
-            sessionStorage.setItem('gemini_api_key', legacyKey);
-          }
-          resolvedKey = legacyKey;
+        if (legacyKey && legacyKey.trim().length > 0) {
+          const cleanLegacyKey = legacyKey.trim();
+          safeSetSessionApiKey(cleanLegacyKey);
+          resolvedKey = cleanLegacyKey;
         }
         // Guarantee legacy key is purged from disk in all execution paths
-        localStorage.removeItem('gemini_api_key');
+        safeRemoveLocalApiKey();
       }
     } catch (e) {
       console.warn("Unable to access or clean legacy localStorage:", e);
@@ -293,13 +596,7 @@ const App: React.FC = () => {
 
     // 2. Check Session Storage (for active tab session across refreshes)
     if (!resolvedKey) {
-      try {
-        if (typeof sessionStorage !== 'undefined') {
-          resolvedKey = sessionStorage.getItem('gemini_api_key');
-        }
-      } catch (e) {
-        console.warn("Unable to access sessionStorage:", e);
-      }
+      resolvedKey = getSessionApiKey();
     }
 
     // If key found from session storage or legacy migration
@@ -310,9 +607,10 @@ const App: React.FC = () => {
     }
 
     // 3. Check Env Var (Fallback/Hosted Deployment)
-    if (process.env.API_KEY && process.env.API_KEY.length > 0) {
-      setApiKey(process.env.API_KEY);
-      setGlobalApiKey(process.env.API_KEY);
+    if (process.env.API_KEY && process.env.API_KEY.trim().length > 0) {
+      const cleanEnvKey = process.env.API_KEY.trim();
+      setApiKey(cleanEnvKey);
+      setGlobalApiKey(cleanEnvKey);
       return;
     }
 
@@ -322,22 +620,9 @@ const App: React.FC = () => {
 
   const handleSaveKey = (key: string) => {
     const trimmedKey = key.trim();
-    try {
-      if (typeof sessionStorage !== 'undefined') {
-        sessionStorage.setItem('gemini_api_key', trimmedKey);
-      }
-    } catch (e) {
-      console.warn("Failed to save key to sessionStorage:", e);
-    }
-
-    try {
-      // Double safeguard: ensure localStorage never holds the key
-      if (typeof localStorage !== 'undefined') {
-        localStorage.removeItem('gemini_api_key');
-      }
-    } catch (e) {
-      console.warn("Failed to clear localStorage:", e);
-    }
+    safeSetSessionApiKey(trimmedKey);
+    // Double safeguard: ensure localStorage never holds the key
+    safeRemoveLocalApiKey();
 
     setApiKey(trimmedKey);
     setGlobalApiKey(trimmedKey);
@@ -348,26 +633,17 @@ const App: React.FC = () => {
     if (pendingPrompt) {
       const nextPrompt = pendingPrompt;
       setPendingPrompt(null);
-      handleGenerate(nextPrompt.prompt, nextPrompt.withVideo, [], trimmedKey);
+      if (nextPrompt.isSurprise) {
+        handleSurprise(nextPrompt.withVideo, trimmedKey);
+      } else {
+        handleGenerate(nextPrompt.prompt, nextPrompt.withVideo, [], trimmedKey);
+      }
     }
   };
 
   const handleClearKey = () => {
-    try {
-      if (typeof sessionStorage !== 'undefined') {
-        sessionStorage.removeItem('gemini_api_key');
-      }
-    } catch (e) {
-      console.warn("Failed to remove key from sessionStorage:", e);
-    }
-
-    try {
-      if (typeof localStorage !== 'undefined') {
-        localStorage.removeItem('gemini_api_key');
-      }
-    } catch (e) {
-      console.warn("Failed to remove key from localStorage:", e);
-    }
+    safeRemoveSessionApiKey();
+    safeRemoveLocalApiKey();
 
     setApiKey(null);
     setGlobalApiKey("");
@@ -382,38 +658,20 @@ const App: React.FC = () => {
   };
 
   const handleBackToShowcase = () => {
+    activeNavigationRef.current++;
     setCurrentId(null);
     setStatus(GenerationStatus.IDLE);
+    setUrlNotification(null);
+    setError(null);
+    syncUrlToExploration(null, 'push');
   };
 
   const handleSelectShowcaseTopic = async (topic: CommunityCatalogItem) => {
     try {
-      const existing = history.find(h => h.id === topic.id);
-      if (existing) {
-        setCurrentId(topic.id);
-        setStatus(GenerationStatus.IDLE);
-        return;
-      }
-
-      // 1. Preload media assets into cache in parallel (zero API key required)
-      const preloadedMedia = await preloadCommunityTopicMedia(topic);
-
-      // 2. Fetch full bundle if available on edge or mock driver
-      let bundle: SanitizedGenerationBundle | null = null;
-      try {
-        bundle = await fetchCommunityTopic(topic.id);
-      } catch (e) {
-        console.warn("[App] Could not fetch community topic bundle, using synthesized adaptation:", e);
-      }
-
-      // 3. Adapt catalog item to full GenerationItem
-      const generationItem = adaptCatalogItemToGenerationItem(topic, preloadedMedia, bundle);
-
-      // 4. Update state: add to history and view item in DisplayArea
-      setHistory(prev => [generationItem, ...prev.filter(h => h.id !== topic.id)]);
-      setCurrentId(generationItem.id);
-      setStatus(GenerationStatus.IDLE);
+      setUrlNotification(null);
       setError(null);
+      const navId = ++activeNavigationRef.current;
+      await hydrateCatalogItem(topic, { isPopState: false, navId });
     } catch (err: any) {
       console.error("[App] Failed to select showcase topic:", err);
       setError(`Failed to load showcase topic: ${err?.message || 'Unknown error'}`);
@@ -434,11 +692,15 @@ const App: React.FC = () => {
   };
 
   const handleClearHistory = () => {
+      activeNavigationRef.current++;
       history.forEach(item => revokeGenerationAssets(item));
       revokeAllObjectURLs();
       setHistory([]);
       setCurrentId(null);
       setStatus(GenerationStatus.IDLE);
+      setUrlNotification(null);
+      setError(null);
+      syncUrlToExploration(null, 'push');
   };
 
   const handleContribute = async (item: GenerationItem): Promise<{ success: boolean; topicId?: string; error?: string }> => {
@@ -485,8 +747,6 @@ const App: React.FC = () => {
     ));
   };
 
-  const isProcessing = status !== GenerationStatus.IDLE && status !== GenerationStatus.COMPLETED && status !== GenerationStatus.FAILED;
-
   const handleGenerate = async (
     prompt: string, 
     withVideo: boolean, 
@@ -497,7 +757,7 @@ const App: React.FC = () => {
     if (!cleanPrompt) return;
     if (isProcessing) return;
 
-    const effectiveKey = overrideKey || apiKey || (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('gemini_api_key') : null);
+    const effectiveKey = overrideKey || apiKey || getSessionApiKey();
     if (!effectiveKey) {
       setPendingPrompt({ prompt: cleanPrompt, withVideo });
       setIsModalOpen(true);
@@ -509,7 +769,8 @@ const App: React.FC = () => {
       setApiKey(effectiveKey);
     }
 
-    const id = Date.now().toString();
+    const topicSlug = generateTopicSlug(cleanPrompt) || 'exploration';
+    const id = `${topicSlug}-${Date.now()}`;
     const currentTier = modelPreferences.tier;
     const currentConfig: StageModelConfig = { 
       ...modelPreferences.config,
@@ -537,6 +798,7 @@ const App: React.FC = () => {
     setCurrentId(id);
     setStatus(GenerationStatus.PLANNING);
     setError(null);
+    setUrlNotification(null);
 
     const usageLog: TokenUsage[] = [...initialUsage];
 
@@ -585,7 +847,7 @@ const App: React.FC = () => {
       // Video Task
       if (withVideo && assembledImg.url && infoImg.url) {
           promises.push(
-              generateVideo(cleanPrompt, plan.domainType, plan.visualMetaphor, assembledImg.url, infoImg.url, currentConfig)
+              generateVideo(cleanPrompt, plan.domainType, plan.visualMetaphor, assembledImg.url, infoImg.url, currentConfig, plan)
               .then(videoRes => {
                   finalVideoUrl = videoRes.url;
                   usageLog.push(videoRes.usage);
@@ -608,6 +870,7 @@ const App: React.FC = () => {
       await Promise.all(promises);
 
       setStatus(GenerationStatus.COMPLETED);
+      syncUrlToExploration(id, 'push');
 
       // Snapshot completed generation item for contribution modal
       const completedItem: GenerationItem = {
@@ -627,9 +890,15 @@ const App: React.FC = () => {
         config: currentConfig,
       };
 
-      // Check opt-out preference
-      const isOptedOut = typeof localStorage !== 'undefined' &&
-        localStorage.getItem('explodeit_contribute_optout') === 'true';
+      // Check opt-out preference safely
+      const isOptedOut = (() => {
+        try {
+          return typeof localStorage !== 'undefined' &&
+            localStorage.getItem('explodeit_contribute_optout') === 'true';
+        } catch {
+          return false;
+        }
+      })();
 
       if (!isOptedOut) {
         setTimeout(() => {
@@ -657,9 +926,10 @@ const App: React.FC = () => {
     }
   };
 
-  const handleSurprise = async (withVideo: boolean) => {
-      const effectiveKey = apiKey || (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('gemini_api_key') : null);
+  const handleSurprise = async (withVideo: boolean, overrideKey?: string) => {
+      const effectiveKey = overrideKey || apiKey || getSessionApiKey();
       if (!effectiveKey) {
+        setPendingPrompt({ prompt: '', withVideo, isSurprise: true });
         setIsModalOpen(true);
         return;
       }
@@ -670,6 +940,7 @@ const App: React.FC = () => {
 
       setStatus(GenerationStatus.GENERATING_RANDOM);
       setError(null);
+      setUrlNotification(null);
       setCurrentId(null); 
 
       try {
@@ -681,6 +952,7 @@ const App: React.FC = () => {
            const msg = err.message || "";
            if (msg.includes("401") || msg.includes("API key") || msg.includes("403")) {
                 setError("Invalid API Key. Please check your key and try again.");
+                setPendingPrompt({ prompt: '', withVideo, isSurprise: true });
                 setIsModalOpen(true); 
                 setStatus(GenerationStatus.IDLE);
                 return;
@@ -698,8 +970,39 @@ const App: React.FC = () => {
     ? status
     : (isItemComplete ? GenerationStatus.COMPLETED : status);
 
+  const hasActiveKey = Boolean(apiKey && apiKey.trim().length > 0);
+
+  const showShareFeedback = (msg = 'Link copied to clipboard!') => {
+    const text =
+      !msg || msg.startsWith('http://') || msg.startsWith('https://') || msg.startsWith('/')
+        ? 'Link copied to clipboard!'
+        : msg;
+    if (shareTimeoutRef.current) {
+      clearTimeout(shareTimeoutRef.current);
+    }
+    setShareToast({
+      visible: true,
+      message: text,
+    });
+    shareTimeoutRef.current = setTimeout(() => {
+      setShareToast(null);
+      shareTimeoutRef.current = null;
+    }, 3000);
+  };
+
+  const handleShareCurrentItem = async () => {
+    if (!currentItem?.id) return;
+    const url = getCanonicalExplorationUrl(currentItem.id);
+    const copied = await copyToClipboard(url);
+    if (copied) {
+      showShareFeedback();
+    } else {
+      showShareFeedback('Could not copy link to clipboard. Please copy from address bar.');
+    }
+  };
+
   return (
-    <div className="flex h-screen bg-slate-950 text-slate-200 font-sans overflow-hidden selection:bg-cyan-500/30">
+    <div className="flex h-screen h-[100dvh] bg-slate-950 text-slate-200 font-sans overflow-hidden selection:bg-cyan-500/30">
       
       <ApiKeyModal 
         isOpen={isModalOpen} 
@@ -759,24 +1062,50 @@ const App: React.FC = () => {
         </div>
       )}
 
+      {/* Share Link Toast Notification */}
+      {shareToast && shareToast.visible && (
+        <div 
+          role="status"
+          aria-live="polite"
+          className="fixed top-4 right-4 z-50 px-4 py-3 rounded-xl shadow-2xl backdrop-blur-md text-xs font-semibold flex items-center gap-2.5 transition-all duration-300 animate-fade-in bg-cyan-950/90 border border-cyan-500/50 text-cyan-200"
+        >
+          <svg className="w-4 h-4 text-cyan-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+          <span>{shareToast.message}</span>
+          <button 
+            type="button" 
+            onClick={() => setShareToast(null)} 
+            className="ml-2 text-slate-400 hover:text-white cursor-pointer font-bold"
+            aria-label="Dismiss notification"
+          >
+            ×
+          </button>
+        </div>
+      )}
+
       <Sidebar 
         history={history} 
         currentId={currentId} 
         onSelect={(item) => {
+            activeNavigationRef.current++;
             setCurrentId(item.id);
+            setError(null);
+            setUrlNotification(null);
             if (!isProcessing) {
               setStatus(GenerationStatus.IDLE); 
             }
+            syncUrlToExploration(item.id, 'push');
         }}
         onClear={handleClearHistory}
         onChangeKey={handleOpenConfig}
-        hasKey={!!apiKey}
+        hasKey={hasActiveKey}
         currentTier={modelPreferences.tier}
         currentConfig={modelPreferences.config}
         onOpenModelSettings={() => setIsModelSettingsOpen(true)}
       />
 
-      <main className="flex-1 flex flex-col h-screen overflow-hidden relative">
+      <main className="flex-1 flex flex-col h-screen h-[100dvh] overflow-hidden relative">
         
         {/* Background Elements */}
         <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-slate-950 -z-10"></div>
@@ -790,6 +1119,7 @@ const App: React.FC = () => {
           onOpenModelSettings={() => setIsModelSettingsOpen(true)}
           onOpenApiKeyModal={handleOpenConfig}
           onNavigateHome={handleBackToShowcase}
+          onShare={handleShareCurrentItem}
           isViewingTopic={currentItem !== null}
         />
 
@@ -799,9 +1129,34 @@ const App: React.FC = () => {
             onSubmit={(prompt, withVideo) => handleGenerate(prompt, withVideo)}
             onSurprise={handleSurprise}
             disabled={isProcessing}
+            modelTier={modelPreferences.tier}
           />
 
           <ProgressTracker status={status} config={modelPreferences.config} />
+
+          {/* URL Deep-Link Fallback Notice */}
+          {urlNotification && urlNotification.visible && (
+            <div 
+              role="status"
+              aria-live="polite"
+              className="w-full max-w-4xl mx-auto mb-6 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 flex items-center justify-between gap-3 backdrop-blur-md animate-fade-in"
+            >
+              <div className="flex items-center gap-3">
+                <svg className="w-5 h-5 text-amber-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="text-sm font-medium">{urlNotification.message}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setUrlNotification(null)}
+                className="text-amber-300/70 hover:text-amber-100 p-1 rounded-lg hover:bg-amber-500/20 transition-colors cursor-pointer text-base leading-none font-bold"
+                aria-label="Dismiss notice"
+              >
+                ×
+              </button>
+            </div>
+          )}
 
           {/* General App Error (non-auth errors) */}
           {error && !isModalOpen && (
@@ -816,12 +1171,15 @@ const App: React.FC = () => {
               onSelectTopic={handleSelectShowcaseTopic}
               catalogItems={catalog}
               isLoading={catalogLoading}
+              hasKey={hasActiveKey}
+              onOpenApiKeyModal={handleOpenConfig}
             />
           ) : (
             <DisplayArea 
               item={currentItem} 
               status={effectiveStatus} 
               onBackToShowcase={handleBackToShowcase}
+              onShare={showShareFeedback}
             />
           )}
 

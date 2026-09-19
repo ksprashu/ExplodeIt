@@ -85,6 +85,11 @@ export interface ObjectPlan {
     voiceName: string;
     toneDescription: string;
   };
+  cleanExplodedPrompt?: string;
+  cleanAssembledPrompt?: string;
+  videoAssemblyPrompt?: string;
+  videoDisassemblyPrompt?: string;
+  kinematicDetails?: string;
 }
 
 export interface AnalysisResult extends ObjectPlan {

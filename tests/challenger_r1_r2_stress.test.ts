@@ -4,7 +4,7 @@ import * as Constants from '../constants';
 // We will also import calculateCost or test its logic directly against the module exports
 describe('Challenger 1 - Stress Harness: R1 Gemini Model Modernization', () => {
   it('R1.1 - Model Identifiers strictly match active production Google GenAI models', () => {
-    expect(Constants.MODEL_PLANNING).toBe('gemini-3.1-pro-preview');
+    expect(Constants.MODEL_PLANNING).toBe('gemini-3.8-flash');
     expect(Constants.MODEL_AUTHORING).toBe('gemini-3.8-flash');
     expect(Constants.MODEL_SCRIPT).toBe('gemini-3.5-flash-lite');
     expect(Constants.MODEL_IMAGE).toBe('gemini-3-pro-image');
@@ -16,8 +16,8 @@ describe('Challenger 1 - Stress Harness: R1 Gemini Model Modernization', () => {
   it('R1.2 - PRICING table contains exact calibrated September 2026 rates', () => {
     // Planning
     expect(Constants.PRICING[Constants.MODEL_PLANNING]).toBeDefined();
-    expect(Constants.PRICING[Constants.MODEL_PLANNING].inputPer1kTokens).toBe(0.002);
-    expect(Constants.PRICING[Constants.MODEL_PLANNING].outputPer1kTokens).toBe(0.012);
+    expect(Constants.PRICING[Constants.MODEL_PLANNING].inputPer1kTokens).toBe(0.0003);
+    expect(Constants.PRICING[Constants.MODEL_PLANNING].outputPer1kTokens).toBe(0.0025);
 
     // Authoring
     expect(Constants.PRICING[Constants.MODEL_AUTHORING]).toBeDefined();
@@ -75,11 +75,11 @@ describe('Challenger 1 - Stress Harness: R1 Gemini Model Modernization', () => {
 
     it('handles standard planning token consumption correctly', () => {
       // 1500 input tokens, 800 output tokens
-      // 1.5 * 0.002 = 0.003
-      // 0.8 * 0.012 = 0.0096
-      // total = 0.0126
+      // 1.5 * 0.0003 = 0.00045
+      // 0.8 * 0.0025 = 0.002
+      // total = 0.00245
       const cost = calculateCost(Constants.MODEL_PLANNING, 1500, 800);
-      expect(cost).toBe(0.0126);
+      expect(cost).toBe(0.00245);
     });
 
     it('handles image and video fixed cost generation', () => {

@@ -83,7 +83,7 @@ export const CANONICAL_MODEL_REGISTRY: Record<string, ModelPricingEntry> = {
 
 export const CANONICAL_MODEL_PRESETS: Record<ModelTier, StageModelConfig> = {
   pro: {
-    planning: 'gemini-3.1-pro-preview',
+    planning: 'gemini-3.8-flash',
     infographic: 'gemini-3-pro-image',
     assembled: 'gemini-3-pro-image',
     video: 'veo-3.1-generate-preview',
@@ -99,7 +99,7 @@ export const CANONICAL_MODEL_PRESETS: Record<ModelTier, StageModelConfig> = {
     enableVideo: false
   },
   custom: {
-    planning: 'gemini-3.1-pro-preview',
+    planning: 'gemini-3.8-flash',
     infographic: 'gemini-3-pro-image',
     assembled: 'gemini-3-pro-image',
     video: 'veo-3.1-generate-preview',
@@ -229,7 +229,7 @@ describe('Contract: Model Registry & Dynamic Pricing Engine (FEAT-02, FEAT-03)',
 
     it('test_feat03_preset_toggle_pro_sets_default_models: Pro preset activates premier models', () => {
       const preset = CANONICAL_MODEL_PRESETS.pro;
-      expect(preset.planning).toBe('gemini-3.1-pro-preview');
+      expect(preset.planning).toBe('gemini-3.8-flash');
       expect(preset.infographic).toBe('gemini-3-pro-image');
       expect(preset.video).toBe('veo-3.1-generate-preview');
       expect(preset.enableVideo).toBe(true);

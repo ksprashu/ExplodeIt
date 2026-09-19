@@ -59,7 +59,12 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({
         if (e.target === e.currentTarget) onCancel();
       }}
     >
-      <div className="bg-slate-900 border border-slate-700 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden relative">
+      <div 
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="api-key-modal-title"
+        className="bg-slate-900 border border-slate-700 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden relative"
+      >
         
         {/* Top-Right Dismiss Button */}
         <button
@@ -75,7 +80,7 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({
 
         {/* Header */}
         <div className="bg-gradient-to-r from-slate-900 to-slate-800 p-6 border-b border-slate-700 pr-12">
-          <h2 className="text-xl font-bold text-white flex items-center gap-2">
+          <h2 id="api-key-modal-title" className="text-xl font-bold text-white flex items-center gap-2">
             <span className="text-xl">🔑</span>
             {initialValue ? "Manage Session API Key" : "Configure Gemini API Key"}
           </h2>

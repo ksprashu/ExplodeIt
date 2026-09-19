@@ -2,7 +2,7 @@ import { Type } from "@google/genai";
 import { ModelTier, StageModelConfig, ModelPreset, ModelPricingEntry } from "./types";
 
 // Active Production Google GenAI Models (Sept 2026)
-export const MODEL_PLANNING = 'gemini-3.1-pro-preview';
+export const MODEL_PLANNING = 'gemini-3.8-flash';
 export const MODEL_AUTHORING = 'gemini-3.8-flash';
 export const MODEL_SCRIPT = 'gemini-3.5-flash-lite';
 export const MODEL_IMAGE = 'gemini-3-pro-image';
@@ -26,12 +26,12 @@ export interface PricingRate {
 // Calibrated Pricing Schedule (USD per 1k units / per item) - September 2026 official rates
 export const PRICING: Record<string, PricingRate> = {
   [MODEL_PLANNING]: {
-    inputPer1kTokens: 0.002,     // $2.00 / 1M
-    outputPer1kTokens: 0.012,    // $12.00 / 1M
-  },
-  [MODEL_AUTHORING]: {
     inputPer1kTokens: 0.0003,    // $0.30 / 1M
     outputPer1kTokens: 0.0025,   // $2.50 / 1M
+  },
+  'gemini-3.1-pro-preview': {
+    inputPer1kTokens: 0.002,     // $2.00 / 1M (retained for backward compatibility)
+    outputPer1kTokens: 0.012,    // $12.00 / 1M
   },
   [MODEL_SCRIPT]: {
     inputPer1kTokens: 0.0001,    // $0.10 / 1M
@@ -55,11 +55,9 @@ export const PRICING: Record<string, PricingRate> = {
   }
 };
 
-// Crucial: Ensure [MODEL_SURPRISE] is explicitly defined in PRICING to eliminate latent TypeError
-PRICING[MODEL_SURPRISE] = {
-  inputPer1kTokens: 0.0003,    // $0.30 / 1M
-  outputPer1kTokens: 0.0025,   // $2.50 / 1M
-};
+// Aliases assigned post-declaration to avoid TS1117 duplicate property collisions
+PRICING[MODEL_AUTHORING] = PRICING[MODEL_PLANNING];
+PRICING[MODEL_SURPRISE] = PRICING[MODEL_PLANNING];
 
 export const MODEL_IDS = {
   // Planning & Text Models
@@ -144,7 +142,7 @@ export const MODEL_REGISTRY: Record<string, ModelPricingEntry> = {
 
 export const CANONICAL_MODEL_PRESETS: Record<ModelTier, StageModelConfig> = {
   pro: {
-    planning: 'gemini-3.1-pro-preview',
+    planning: 'gemini-3.8-flash',
     infographic: 'gemini-3-pro-image',
     assembled: 'gemini-3-pro-image',
     video: 'veo-3.1-generate-preview',
@@ -160,7 +158,7 @@ export const CANONICAL_MODEL_PRESETS: Record<ModelTier, StageModelConfig> = {
     enableVideo: false
   },
   custom: {
-    planning: 'gemini-3.1-pro-preview',
+    planning: 'gemini-3.8-flash',
     infographic: 'gemini-3-pro-image',
     assembled: 'gemini-3-pro-image',
     video: 'veo-3.1-generate-preview',
@@ -174,10 +172,10 @@ export const MODEL_PRESETS: Record<'pro' | 'budget', ModelPreset> = {
     id: 'pro',
     name: 'Pro Studio',
     tagline: 'Premier Quality',
-    description: 'Gemini 3.1 Pro deconstruction, 2K HD visuals, and cinematic Veo 3.1 video animation.',
+    description: 'Gemini 3.8 Flash High-Thinking deconstruction, 2K HD visuals, and cinematic Veo 3.1 video animation.',
     badgeColor: 'from-amber-400 to-orange-500',
     config: CANONICAL_MODEL_PRESETS.pro,
-    estimatedCost: 2.2842,
+    estimatedCost: 2.27385,
   },
   budget: {
     id: 'budget',
@@ -300,10 +298,17 @@ export const PROMPTS = {
   **4. Visual & Audio Style:**
   - **Visual Style**: Photorealistic (for physical/bio) or High-End Tech Vector/3D (for software) or Ethereal/Surreal (for conceptual).
   - **Audio Vibe**: Choose a voice persona that fits the topic (e.g., Fenrir for intense tech, Zephyr for meditation).
+
+  **5. Kinematic Motion & Clean Visual Prompts:**
+  - **cleanExplodedPrompt**: Detailed prompt for a pristine 3D exploded view with zero 2D annotations, labels, leader lines, or HUDs, set against a dark obsidian backdrop with 5600K illumination.
+  - **cleanAssembledPrompt**: Detailed prompt for the matching assembled studio hero shot at an identical 45° isometric perspective, 5600K lighting, and dark obsidian backdrop, free of arbitrary floating holograms or tablets.
+  - **videoAssemblyPrompt**: Veo 3.1 cinematic prompt specifying exact mechanical/physical kinematics: 4-phase assembly sequence from floating exploded parts gliding along isometric trajectories, interlocking docking transitions, core chassis convergence, and tactile snapping closures.
+  - **videoDisassemblyPrompt**: Veo 3.1 cinematic prompt specifying the inverse mechanical release, unseating, and axial decoupling into zero-gravity suspension.
+  - **kinematicDetails**: Step-by-step description of functional actuation, key travel, mechanical clearance, or biological motion during operation.
   
   Do not explain. Return JSON complying with the schema.`,
 
-  // Step 2: Pro Image (Infographic) - Upgraded with 5 structural directives
+  // Step 2: Pro Image (Infographic) - Upgraded with pristine 3D deconstruction
   INFOGRAPHIC: (item: string, style: string, parts: string[], domain: string, metaphor: string) => 
     `Create a high-fidelity educational infographic: A "${metaphor}" of ${item}.
 
@@ -318,10 +323,11 @@ export const PROMPTS = {
    - Tier 3: Core operational mechanism, power train, circuitry, core heart, or data pipeline.
    - Tier 4: Internal sub-components, micro-mechanics, micro-fasteners, chips, or cellular organelles.
 2. **Internal Cutaways & Cross-Sections:** Provide 45-degree technical cross-section cutaways and revealing section views exposing interior cavities and internal working surfaces.
-3. **Isometric Leader Callout Lines:** Clean, fine isometric hairline leader callouts projecting outward isometrically with technical callout anchors.
+3. **Pristine 3D Deconstruction (NO 2D Annotations):** STRICT INVARIANT: Render every component as a tangible, physical 3D object suspended in space. Strictly DO NOT draw any 2D text, text labels, typography, leader lines, indicator lines, hairline arrows, callout anchors, inset bubble graphics, or futuristic HUD overlays on the image.
 4. **Studio Illumination & Floating Modularity:** High-contrast 5600K daylight-balanced key illumination with electric cyan rim illumination over dark obsidian backdrop, floating suspended parts with distinct drop shadows.
 
-Composition: Centered, clean, museum-grade technical illustration, high resolution.`,
+Composition: Centered, clean, museum-grade technical illustration, high resolution.
+STRICT PROHIBITION: NO 2D text, no labels, no leader lines, no HUDs, no graphic callouts. Pure 3D geometry only.`,
 
   // Step 3: Pro Image (Assembled - Image to Image)
   ASSEMBLED: (item: string, title: string, description: string, domain: string) => 
@@ -330,10 +336,16 @@ Composition: Centered, clean, museum-grade technical illustration, high resoluti
     **Context:** ${description}
     **Domain:** ${domain}
     
-    **CRITICAL INSTRUCTIONS:**
-    - **Physical:** The object is CLOSED, INTACT, and WHOLE. Sitting on a surface.
-    - **Software:** A futuristic "dashboard" or "interface" visualization on a glass tablet or floating hologram, representing the *running* application.
-    - **Conceptual:** A harmonious, unified symbol or scene representing the *mastery* or *completion* of the concept (e.g., a person levitating for meditation).
+    **CRITICAL INSTRUCTIONS & UNIFIED VISUAL INVARIANTS:**
+    - **Perspective & Framing:** Identical 45° Isometric Perspective matching the exploded view, centered, museum-grade composition.
+    - **Lighting & Environment:** High-contrast 5600K daylight-balanced studio illumination with sharp contact shadows over a dark obsidian backdrop, ensuring visual and material continuity with the exploded view.
+    - **State:** The subject is CLOSED, INTACT, and FULLY ASSEMBLED.
+    - **Domain Adaptations:**
+      - **Physical:** Complete physical enclosure, sitting intact on the dark obsidian surface.
+      - **Software:** Architectural physical node, server rack unit, or modular computing crystal on the dark obsidian surface.
+      - **Biological:** Complete living organism, intact organ, or whole biological specimen in natural complete state.
+      - **Conceptual:** A harmonious, unified 3D physical emblem or monolithic symbol representing completion.
+    - STRICT PROHIBITION: DO NOT generate arbitrary futuristic tablets or flat display panels.
     - Use the previous exploded view/diagram as the *source of truth* for materials and aesthetics, but show the **assembled/complete** state.`,
 
   // Step 4: Authoring Deep Dive (Gemini 3.8 Flash + Search)
@@ -457,9 +469,31 @@ export const PlanSchema = {
             voiceName: { type: Type.STRING, description: "One of: Puck, Charon, Kore, Fenrir, Zephyr" },
             toneDescription: { type: Type.STRING }
         }
-    }
+    },
+    cleanExplodedPrompt: { type: Type.STRING, description: "Text-free exploded view prompt on obsidian backdrop." },
+    cleanAssembledPrompt: { type: Type.STRING, description: "Matching assembled studio shot prompt at 45° isometric perspective with 5600K lighting." },
+    videoAssemblyPrompt: { type: Type.STRING, description: "Object-specific mechanical assembly kinematics prompt for Veo 3.1." },
+    videoDisassemblyPrompt: { type: Type.STRING, description: "Object-specific mechanical disassembly kinematics prompt for Veo 3.1." },
+    kinematicDetails: { type: Type.STRING, description: "Detailed mechanical actuation and functional movement description." }
   },
-  required: ["displayTitle", "category", "domainType", "visualMetaphor", "sectionTitles", "originStory", "detailedArticle", "trivia", "visualStylePrompt", "componentList", "audioVibe"]
+  required: [
+    "displayTitle", 
+    "category", 
+    "domainType", 
+    "visualMetaphor", 
+    "sectionTitles", 
+    "originStory", 
+    "detailedArticle", 
+    "trivia", 
+    "visualStylePrompt", 
+    "componentList", 
+    "audioVibe",
+    "cleanExplodedPrompt",
+    "cleanAssembledPrompt",
+    "videoAssemblyPrompt",
+    "videoDisassemblyPrompt",
+    "kinematicDetails"
+  ]
 };
 
 export const ComponentDetailsSchema = {

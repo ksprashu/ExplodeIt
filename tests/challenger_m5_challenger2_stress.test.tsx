@@ -85,11 +85,13 @@ describe('Challenger 2 - Empirical Adversarial Stress Suite: Milestone 5', () =>
     localStorage.clear();
     sessionStorage.clear();
     delete (process.env as any).API_KEY;
+    window.history.replaceState({}, '', '/');
     await mediaCache.clearCache();
     vi.clearAllMocks();
   });
 
   afterEach(() => {
+    window.history.replaceState({}, '', '/');
     vi.restoreAllMocks();
   });
 

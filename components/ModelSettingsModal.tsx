@@ -146,10 +146,10 @@ export const ModelSettingsModal: React.FC<ModelSettingsModalProps> = ({
               </div>
               <h3 className="text-sm font-bold text-slate-200 mb-1">Premier Quality</h3>
               <p className="text-xs text-slate-400 leading-relaxed mb-3">
-                Gemini 3 Pro deconstruction, 2K HD exploded infographics, and Veo 3.1 cinematic assembly animation.
+                Gemini 3.8 Flash High-Thinking deconstruction, 2K HD exploded infographics, and Veo 3.1 cinematic assembly animation.
               </p>
               <div className="text-[11px] font-mono text-slate-500 space-y-1">
-                <div>• Planning: Gemini 3.1 Pro</div>
+                <div>• Planning: Gemini 3.8 Flash</div>
                 <div>• Images: Gemini 3 Pro Image (2K)</div>
                 <div>• Video: Veo 3.1 Cinema (Enabled)</div>
               </div>
