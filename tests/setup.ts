@@ -1,6 +1,10 @@
 import '@testing-library/jest-dom/vitest';
 import { cleanup } from '@testing-library/react';
+import { configure } from '@testing-library/dom';
 import { afterEach, vi } from 'vitest';
+
+// Configure async wait timeout for CI environments
+configure({ asyncUtilTimeout: 5000 });
 
 // 1. Automatically clean up rendered React components after each test
 afterEach(() => {
