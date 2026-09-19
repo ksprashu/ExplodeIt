@@ -149,7 +149,7 @@ export const ModelSettingsModal: React.FC<ModelSettingsModalProps> = ({
                 Gemini 3 Pro deconstruction, 2K HD exploded infographics, and Veo 3.1 cinematic assembly animation.
               </p>
               <div className="text-[11px] font-mono text-slate-500 space-y-1">
-                <div>• Planning: Gemini 3 Pro</div>
+                <div>• Planning: Gemini 3.1 Pro</div>
                 <div>• Images: Gemini 3 Pro Image (2K)</div>
                 <div>• Video: Veo 3.1 Cinema (Enabled)</div>
               </div>
@@ -174,12 +174,12 @@ export const ModelSettingsModal: React.FC<ModelSettingsModalProps> = ({
               </div>
               <h3 className="text-sm font-bold text-slate-200 mb-1">Credit Conserver</h3>
               <p className="text-xs text-slate-400 leading-relaxed mb-3">
-                Fast Flash planning, cost-effective Imagen 3 visuals, and video disabled by default to save credits.
+                Fast Flash planning, cost-efficient Gemini 3.1 Flash visuals, and video disabled by default to save credits.
               </p>
               <div className="text-[11px] font-mono text-slate-500 space-y-1">
-                <div>• Planning: Gemini 2.5 Flash</div>
-                <div>• Images: Imagen 3 Fast</div>
-                <div>• Video: Disabled (Veo 2 Standby)</div>
+                <div>• Planning: Gemini 3.8 Flash</div>
+                <div>• Images: Gemini 3.1 Flash Image</div>
+                <div>• Video: Disabled (Veo 3.1 Lite Standby)</div>
               </div>
             </div>
           </div>
@@ -202,7 +202,7 @@ export const ModelSettingsModal: React.FC<ModelSettingsModalProps> = ({
                 )}
               </div>
               <p className="text-xs text-slate-400 mt-0.5">
-                Video diffusion renders realistic mechanical lock-in motion but consumes the majority of run credits (~$0.10/video).
+                Video diffusion renders realistic mechanical lock-in motion but consumes the majority of run credits (~$0.25 - $2.00/video).
               </p>
             </div>
             <button
@@ -255,12 +255,9 @@ export const ModelSettingsModal: React.FC<ModelSettingsModalProps> = ({
                     onChange={(e) => handleStageModelChange('planning', e.target.value)}
                     className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-cyan-500 font-mono"
                   >
-                    <option value="gemini-3-pro-preview">Gemini 3 Pro (gemini-3-pro-preview)</option>
                     <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro (gemini-3.1-pro-preview)</option>
-                    <option value="gemini-2.5-pro">Gemini 2.5 Pro (gemini-2.5-pro)</option>
-                    <option value="gemini-2.5-flash">Gemini 2.5 Flash (gemini-2.5-flash)</option>
-                    <option value="gemini-flash-lite-latest">Gemini Flash Lite (gemini-flash-lite-latest)</option>
-                    <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite (gemini-2.5-flash-lite)</option>
+                    <option value="gemini-3.8-flash">Gemini 3.8 Flash (gemini-3.8-flash)</option>
+                    <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash Lite (gemini-3.5-flash-lite)</option>
                   </select>
                 </div>
 
@@ -274,10 +271,7 @@ export const ModelSettingsModal: React.FC<ModelSettingsModalProps> = ({
                     onChange={(e) => handleStageModelChange('infographic', e.target.value)}
                     className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-cyan-500 font-mono"
                   >
-                    <option value="gemini-3-pro-image-preview">Gemini 3 Pro Image 2K (gemini-3-pro-image-preview)</option>
-                    <option value="gemini-3-pro-image">Gemini 3 Pro Image HQ (gemini-3-pro-image)</option>
-                    <option value="imagen-3-fast">Imagen 3 Fast (imagen-3-fast)</option>
-                    <option value="imagen-3.0-fast-generate-001">Imagen 3 Fast v001 (imagen-3.0-fast-generate-001)</option>
+                    <option value="gemini-3-pro-image">Gemini 3 Pro Image (gemini-3-pro-image)</option>
                     <option value="gemini-3.1-flash-image">Gemini 3.1 Flash Image (gemini-3.1-flash-image)</option>
                   </select>
                 </div>
@@ -292,10 +286,7 @@ export const ModelSettingsModal: React.FC<ModelSettingsModalProps> = ({
                     onChange={(e) => handleStageModelChange('assembled', e.target.value)}
                     className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-cyan-500 font-mono"
                   >
-                    <option value="gemini-3-pro-image-preview">Gemini 3 Pro Image 2K (gemini-3-pro-image-preview)</option>
-                    <option value="gemini-3-pro-image">Gemini 3 Pro Image HQ (gemini-3-pro-image)</option>
-                    <option value="imagen-3-fast">Imagen 3 Fast (imagen-3-fast)</option>
-                    <option value="imagen-3.0-fast-generate-001">Imagen 3 Fast v001 (imagen-3.0-fast-generate-001)</option>
+                    <option value="gemini-3-pro-image">Gemini 3 Pro Image (gemini-3-pro-image)</option>
                     <option value="gemini-3.1-flash-image">Gemini 3.1 Flash Image (gemini-3.1-flash-image)</option>
                   </select>
                 </div>
@@ -314,9 +305,7 @@ export const ModelSettingsModal: React.FC<ModelSettingsModalProps> = ({
                     }`}
                   >
                     <option value="veo-3.1-generate-preview">Veo 3.1 Cinema (veo-3.1-generate-preview)</option>
-                    <option value="veo-2-generate-preview">Veo 2 Economy (veo-2-generate-preview)</option>
                     <option value="veo-3.1-lite-generate-preview">Veo 3.1 Lite (veo-3.1-lite-generate-preview)</option>
-                    <option value="veo-2.0-generate-001">Veo 2.0 Standard (veo-2.0-generate-001)</option>
                   </select>
                   {!stageConfig.enableVideo && (
                     <span className="text-[11px] text-slate-500 block mt-1">
@@ -335,9 +324,8 @@ export const ModelSettingsModal: React.FC<ModelSettingsModalProps> = ({
                     onChange={(e) => handleStageModelChange('narration', e.target.value)}
                     className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-cyan-500 font-mono"
                   >
-                    <option value="gemini-flash-lite-latest">Gemini Flash Lite (gemini-flash-lite-latest)</option>
-                    <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite (gemini-2.5-flash-lite)</option>
-                    <option value="gemini-2.5-flash">Gemini 2.5 Flash (gemini-2.5-flash)</option>
+                    <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash Lite (gemini-3.5-flash-lite)</option>
+                    <option value="gemini-3.8-flash">Gemini 3.8 Flash (gemini-3.8-flash)</option>
                   </select>
                 </div>
 
@@ -374,7 +362,7 @@ export const ModelSettingsModal: React.FC<ModelSettingsModalProps> = ({
                 </span>
               ) : (
                 <span className="text-[11px] text-emerald-400 font-medium">
-                  Video Disabled (Saves ~80%)
+                  Video Disabled (Saves &gt;90%)
                 </span>
               )}
             </div>

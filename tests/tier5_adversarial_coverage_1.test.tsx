@@ -228,7 +228,7 @@ describe('Tier 5 Adversarial Coverage Hardening Suite 1', () => {
       // 2. Unsupported tier string
       localStorage.setItem('explodeit_model_preferences', JSON.stringify({
         tier: 'hyper-quantum-tier',
-        config: { planning: 'gemini-3.1-pro' }
+        config: { planning: 'gemini-3.1-pro-preview' }
       }));
       const unknownTierRecovery = loadModelPreferences();
       expect(unknownTierRecovery.tier).toBe('pro');
@@ -535,7 +535,7 @@ describe('Tier 5 Adversarial Coverage Hardening Suite 1', () => {
       // Resolve plan promise to clean up
       resolvePlan({
         data: mockCameraPlan,
-        usage: { model: 'gemini-3.1-pro', inputTokens: 10, outputTokens: 20, costEstimate: 0.001 },
+        usage: { model: 'gemini-3.1-pro-preview', inputTokens: 10, outputTokens: 20, costEstimate: 0.001 },
       });
     });
 
@@ -566,7 +566,7 @@ describe('Tier 5 Adversarial Coverage Hardening Suite 1', () => {
 
       resolvePlan({
         data: mockCameraPlan,
-        usage: { model: 'gemini-3.1-pro', inputTokens: 10, outputTokens: 20, costEstimate: 0.001 },
+        usage: { model: 'gemini-3.1-pro-preview', inputTokens: 10, outputTokens: 20, costEstimate: 0.001 },
       });
     });
 

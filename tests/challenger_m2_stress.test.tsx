@@ -100,11 +100,11 @@ describe('Challenger 2 - Empirical Stress Harness: Milestone 2', () => {
 
       // Save Custom preferences
       const customConfig: StageModelConfig = {
-        planning: 'gemini-2.5-flash',
-        infographic: 'imagen-3-fast',
-        assembled: 'imagen-3-fast',
+        planning: 'gemini-3.8-flash',
+        infographic: 'gemini-3.1-flash-image',
+        assembled: 'gemini-3.1-flash-image',
         video: 'veo-3.1-generate-preview',
-        narration: 'gemini-flash-lite-latest',
+        narration: 'gemini-3.5-flash-lite',
         enableVideo: false
       };
       saveModelPreferences('custom', customConfig);

@@ -64,11 +64,11 @@ const mockCompletedItemWithVideo: GenerationItem = {
   usage: [],
   tier: 'pro',
   config: {
-    planning: 'gemini-2.5-pro',
-    infographic: 'imagen-3.0-generate-002',
-    assembled: 'imagen-3.0-generate-002',
-    video: 'veo-2.0-generate-001',
-    narration: 'gemini-2.5-flash',
+    planning: 'gemini-3.1-pro-preview',
+    infographic: 'gemini-3-pro-image',
+    assembled: 'gemini-3-pro-image',
+    video: 'veo-3.1-generate-preview',
+    narration: 'gemini-3.5-flash-lite',
     enableVideo: true,
   },
 };
@@ -177,7 +177,7 @@ describe('Challenger 2 - Empirical Adversarial Stress Suite: Milestone 5', () =>
     it('C2.2: Cancelling modal clears pending prompt without triggering any generation call', async () => {
       const planSpy = vi.spyOn(geminiService, 'planObject').mockResolvedValue({
         data: mockCameraPlan,
-        usage: { model: 'gemini-3.1-pro', inputTokens: 100, outputTokens: 200, costEstimate: 0.005 },
+        usage: { model: 'gemini-3.1-pro-preview', inputTokens: 100, outputTokens: 200, costEstimate: 0.005 },
       } as any);
 
       render(<App />);
@@ -245,7 +245,7 @@ describe('Challenger 2 - Empirical Adversarial Stress Suite: Milestone 5', () =>
       // Clean up hanging promise
       resolvePlan({
         data: mockCameraPlan,
-        usage: { model: 'gemini-3.1-pro', inputTokens: 100, outputTokens: 200, costEstimate: 0.005 },
+        usage: { model: 'gemini-3.1-pro-preview', inputTokens: 100, outputTokens: 200, costEstimate: 0.005 },
       });
     });
 
@@ -460,7 +460,7 @@ describe('Challenger 2 - Empirical Adversarial Stress Suite: Milestone 5', () =>
           domain: 'PHYSICAL',
           metaphor: 'Optical Resonator Split',
           modelTier: 'pro',
-          modelsUsed: { planning: 'gemini-3.1-pro' },
+          modelsUsed: { planning: 'gemini-3.1-pro-preview' },
         },
         plan: mockCameraPlan,
         components: mockCameraComponents,
@@ -671,7 +671,7 @@ describe('Challenger 2 - Empirical Adversarial Stress Suite: Milestone 5', () =>
       // Resolve to clean up hanging promise
       resolvePlan({
         data: mockCameraPlan,
-        usage: { model: 'gemini-3.1-pro', inputTokens: 10, outputTokens: 10, costEstimate: 0.001 },
+        usage: { model: 'gemini-3.1-pro-preview', inputTokens: 10, outputTokens: 10, costEstimate: 0.001 },
       });
     });
   });

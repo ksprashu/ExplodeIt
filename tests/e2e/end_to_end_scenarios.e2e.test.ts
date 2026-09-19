@@ -45,7 +45,7 @@ describe('E2E: Cross-Feature Combinations & Real-World Application Scenarios (Ti
 
       // 2. Pricing engine must calculate zero video cost
       const estimatedCost = contractEstimateRunCost(budgetConfig);
-      expect(estimatedCost).toBeLessThan(0.03);
+      expect(estimatedCost).toBeLessThan(0.25);
 
       // 3. Packaging bundle must mark videoBlob as undefined
       const bundle = contractSanitizeAndBundle(mockBudgetGenerationItem, 'budget', budgetConfig);
@@ -168,7 +168,7 @@ describe('E2E: Cross-Feature Combinations & Real-World Application Scenarios (Ti
 
       // Step 2: Cost estimation is highly economical
       const cost = contractEstimateRunCost(budgetConfig);
-      expect(cost).toBeLessThan(0.03);
+      expect(cost).toBeLessThan(0.25);
 
       // Step 3: Generation outputs item without video
       const bundle = contractSanitizeAndBundle(mockBudgetGenerationItem, 'budget', budgetConfig);

@@ -18,11 +18,11 @@ describe('M5 R2 Challenger 2 - Stale Closure & Edge Case Empirical Verification'
     vi.spyOn(geminiService, 'setGlobalApiKey').mockImplementation(() => {});
     vi.spyOn(geminiService, 'generateInfographic').mockResolvedValue({
       url: DUMMY_PNG_DATA_URL,
-      usage: { model: 'imagen-3', inputTokens: 0, outputTokens: 0, costEstimate: 0.04 },
+      usage: { model: 'gemini-3-pro-image', inputTokens: 0, outputTokens: 0, costEstimate: 0.134 },
     } as any);
     vi.spyOn(geminiService, 'generateAssembledImage').mockResolvedValue({
       url: DUMMY_PNG_DATA_URL,
-      usage: { model: 'imagen-3', inputTokens: 0, outputTokens: 0, costEstimate: 0.04 },
+      usage: { model: 'gemini-3-pro-image', inputTokens: 0, outputTokens: 0, costEstimate: 0.134 },
     } as any);
     vi.spyOn(geminiService, 'enrichComponentDetails').mockResolvedValue({
       data: [],
@@ -30,12 +30,12 @@ describe('M5 R2 Challenger 2 - Stale Closure & Edge Case Empirical Verification'
     } as any);
     vi.spyOn(geminiService, 'generateVideo').mockResolvedValue({
       url: DUMMY_VIDEO_DATA_URL,
-      usage: { model: 'veo-3.1', inputTokens: 0, outputTokens: 0, costEstimate: 0.20 },
+      usage: { model: 'veo-3.1-generate-preview', inputTokens: 0, outputTokens: 0, costEstimate: 2.00 },
     } as any);
     vi.spyOn(geminiService, 'generateAudioNarration').mockResolvedValue({
       url: DUMMY_AUDIO_DATA_URL,
       script: 'Narration script',
-      usage: [{ model: 'gemini-tts', inputTokens: 50, outputTokens: 50, costEstimate: 0.001 }],
+      usage: [{ model: 'gemini-3.1-flash-tts-preview', inputTokens: 50, outputTokens: 50, costEstimate: 0.0001 }],
     } as any);
   });
 
@@ -66,7 +66,7 @@ describe('M5 R2 Challenger 2 - Stale Closure & Edge Case Empirical Verification'
     it('E1.2: App ignores empty or whitespace-only prompt without setting pendingPrompt or opening modal', async () => {
       const planSpy = vi.spyOn(geminiService, 'planObject').mockResolvedValue({
         data: mockCameraPlan,
-        usage: { model: 'gemini-3.1-pro', inputTokens: 100, outputTokens: 200, costEstimate: 0.005 },
+        usage: { model: 'gemini-3.1-pro-preview', inputTokens: 100, outputTokens: 200, costEstimate: 0.005 },
       } as any);
 
       render(<App />);
@@ -91,7 +91,7 @@ describe('M5 R2 Challenger 2 - Stale Closure & Edge Case Empirical Verification'
     it('E2.1: Pressing Escape while ApiKeyModal is open from prompt interception cleanly dismisses modal without starting generation', async () => {
       const planSpy = vi.spyOn(geminiService, 'planObject').mockResolvedValue({
         data: mockCameraPlan,
-        usage: { model: 'gemini-3.1-pro', inputTokens: 100, outputTokens: 200, costEstimate: 0.005 },
+        usage: { model: 'gemini-3.1-pro-preview', inputTokens: 100, outputTokens: 200, costEstimate: 0.005 },
       } as any);
 
       render(<App />);
@@ -168,7 +168,7 @@ describe('M5 R2 Challenger 2 - Stale Closure & Edge Case Empirical Verification'
       await act(async () => {
         resolvePlan({
           data: mockCameraPlan,
-          usage: { model: 'gemini-3.1-pro', inputTokens: 100, outputTokens: 200, costEstimate: 0.005 },
+          usage: { model: 'gemini-3.1-pro-preview', inputTokens: 100, outputTokens: 200, costEstimate: 0.005 },
         });
       });
     });
@@ -215,7 +215,7 @@ describe('M5 R2 Challenger 2 - Stale Closure & Edge Case Empirical Verification'
       await act(async () => {
         resolvePlan({
           data: mockCameraPlan,
-          usage: { model: 'gemini-3.1-pro', inputTokens: 100, outputTokens: 200, costEstimate: 0.005 },
+          usage: { model: 'gemini-3.1-pro-preview', inputTokens: 100, outputTokens: 200, costEstimate: 0.005 },
         });
       });
     });
@@ -275,7 +275,7 @@ describe('M5 R2 Challenger 2 - Stale Closure & Edge Case Empirical Verification'
       await act(async () => {
         resolvePlan({
           data: mockCameraPlan,
-          usage: { model: 'gemini-3.1-pro', inputTokens: 100, outputTokens: 200, costEstimate: 0.005 },
+          usage: { model: 'gemini-3.1-pro-preview', inputTokens: 100, outputTokens: 200, costEstimate: 0.005 },
         });
       });
     });

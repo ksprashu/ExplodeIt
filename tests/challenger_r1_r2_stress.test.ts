@@ -5,12 +5,12 @@ import * as Constants from '../constants';
 describe('Challenger 1 - Stress Harness: R1 Gemini Model Modernization', () => {
   it('R1.1 - Model Identifiers strictly match active production Google GenAI models', () => {
     expect(Constants.MODEL_PLANNING).toBe('gemini-3.1-pro-preview');
-    expect(Constants.MODEL_AUTHORING).toBe('gemini-2.5-flash');
-    expect(Constants.MODEL_SCRIPT).toBe('gemini-2.5-flash-lite');
+    expect(Constants.MODEL_AUTHORING).toBe('gemini-3.8-flash');
+    expect(Constants.MODEL_SCRIPT).toBe('gemini-3.5-flash-lite');
     expect(Constants.MODEL_IMAGE).toBe('gemini-3-pro-image');
     expect(Constants.MODEL_VIDEO).toBe('veo-3.1-generate-preview');
-    expect(Constants.MODEL_TTS).toBe('gemini-2.5-flash-preview-tts');
-    expect(Constants.MODEL_SURPRISE).toBe('gemini-2.5-flash');
+    expect(Constants.MODEL_TTS).toBe('gemini-3.1-flash-tts-preview');
+    expect(Constants.MODEL_SURPRISE).toBe('gemini-3.8-flash');
   });
 
   it('R1.2 - PRICING table contains exact calibrated September 2026 rates', () => {

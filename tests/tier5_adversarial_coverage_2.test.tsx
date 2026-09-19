@@ -270,7 +270,7 @@ describe('Tier 5 Adversarial Security & Edge Hardening Suite (M6 Challenger 2)',
       };
 
       const estimatedCost = contractEstimateRunCost(budgetConfig);
-      expect(estimatedCost).toBeLessThan(0.03);
+      expect(estimatedCost).toBeLessThan(0.25);
 
       const bundle = sanitizeGenerationItem(mockBudgetGenerationItem, 'budget', budgetConfig);
       expect(bundle.media.videoBlob).toBeUndefined();
@@ -408,7 +408,7 @@ describe('Tier 5 Adversarial Security & Edge Hardening Suite (M6 Challenger 2)',
     it('Tier 4 Scenario 3: Budget Tech Researcher (Conservation Mode & Skip Video)', () => {
       const budgetConfig = { ...CANONICAL_MODEL_PRESETS.budget, enableVideo: false };
       const budgetCost = contractEstimateRunCost(budgetConfig);
-      expect(budgetCost).toBeLessThan(0.03);
+      expect(budgetCost).toBeLessThan(0.25);
 
       const bundle = sanitizeGenerationItem(mockBudgetGenerationItem, 'budget', budgetConfig);
       expect(bundle.media.videoBlob).toBeUndefined();

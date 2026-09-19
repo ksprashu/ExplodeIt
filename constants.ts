@@ -2,16 +2,16 @@ import { Type } from "@google/genai";
 import { ModelTier, StageModelConfig, ModelPreset, ModelPricingEntry } from "./types";
 
 // Active Production Google GenAI Models (Sept 2026)
-export const MODEL_PLANNING = 'gemini-3.1-pro-preview';       // Upgraded from deprecated gemini-3-pro-preview
-export const MODEL_AUTHORING = 'gemini-2.5-flash';          // Active Stable
-export const MODEL_SCRIPT = 'gemini-2.5-flash-lite';        // Upgraded from floating gemini-flash-lite-latest
-export const MODEL_IMAGE = 'gemini-3-pro-image';            // Corrected from invalid gemini-3-pro-image-preview
-export const MODEL_VIDEO = 'veo-3.1-generate-preview';      // Active Preview
-export const MODEL_TTS = 'gemini-2.5-flash-preview-tts';    // Active Preview
-export const MODEL_SURPRISE = 'gemini-2.5-flash';           // Active Stable
+export const MODEL_PLANNING = 'gemini-3.1-pro-preview';
+export const MODEL_AUTHORING = 'gemini-3.8-flash';
+export const MODEL_SCRIPT = 'gemini-3.5-flash-lite';
+export const MODEL_IMAGE = 'gemini-3-pro-image';
+export const MODEL_VIDEO = 'veo-3.1-generate-preview';
+export const MODEL_TTS = 'gemini-3.1-flash-tts-preview';
+export const MODEL_SURPRISE = 'gemini-3.8-flash';
 
 // Budget Saver Alternates
-export const MODEL_PLANNING_BUDGET = 'gemini-2.5-flash';
+export const MODEL_PLANNING_BUDGET = 'gemini-3.8-flash';
 export const MODEL_IMAGE_BUDGET = 'gemini-3.1-flash-image';
 export const MODEL_VIDEO_BUDGET = 'veo-3.1-lite-generate-preview';
 
@@ -63,94 +63,24 @@ PRICING[MODEL_SURPRISE] = {
 
 export const MODEL_IDS = {
   // Planning & Text Models
-  GEMINI_3_PRO: 'gemini-3-pro-preview',
   GEMINI_3_1_PRO: 'gemini-3.1-pro-preview',
-  GEMINI_2_5_PRO: 'gemini-2.5-pro',
-  GEMINI_2_5_FLASH: 'gemini-2.5-flash',
-  GEMINI_2_5_FLASH_LITE: 'gemini-2.5-flash-lite',
-  GEMINI_FLASH_LITE: 'gemini-flash-lite-latest',
+  GEMINI_3_8_FLASH: 'gemini-3.8-flash',
+  GEMINI_3_5_FLASH_LITE: 'gemini-3.5-flash-lite',
 
   // Image Generation Models
-  GEMINI_3_PRO_IMAGE_PREVIEW: 'gemini-3-pro-image-preview',
   GEMINI_3_PRO_IMAGE: 'gemini-3-pro-image',
-  IMAGEN_3_FAST: 'imagen-3-fast',
-  IMAGEN_3_FAST_GENERATE: 'imagen-3.0-fast-generate-001',
-  IMAGEN_3: 'imagen-3.0-generate-002',
   GEMINI_3_1_FLASH_IMAGE: 'gemini-3.1-flash-image',
 
   // Video Generation Models
   VEO_3_1: 'veo-3.1-generate-preview',
   VEO_3_1_LITE: 'veo-3.1-lite-generate-preview',
-  VEO_2: 'veo-2-generate-preview',
-  VEO_2_0: 'veo-2.0-generate-001',
 
   // Audio & TTS Models
-  GEMINI_TTS: 'gemini-2.5-flash-preview-tts',
+  GEMINI_TTS: 'gemini-3.1-flash-tts-preview',
 } as const;
 
 export const MODEL_REGISTRY: Record<string, ModelPricingEntry> = {
-  // Canonical Contract Models
-  'gemini-3-pro-preview': {
-    id: 'gemini-3-pro-preview',
-    displayName: 'Gemini 3 Pro',
-    type: 'token',
-    rates: { inputPer1kTokens: 0.00125, outputPer1kTokens: 0.005 },
-    inputPer1kTokens: 0.00125,
-    outputPer1kTokens: 0.005
-  },
-  'gemini-2.5-flash': {
-    id: 'gemini-2.5-flash',
-    displayName: 'Gemini 2.5 Flash',
-    type: 'token',
-    rates: { inputPer1kTokens: 0.0001, outputPer1kTokens: 0.0004 },
-    inputPer1kTokens: 0.0001,
-    outputPer1kTokens: 0.0004
-  },
-  'gemini-flash-lite-latest': {
-    id: 'gemini-flash-lite-latest',
-    displayName: 'Gemini Flash Lite',
-    type: 'token',
-    rates: { inputPer1kTokens: 0.000075, outputPer1kTokens: 0.0003 },
-    inputPer1kTokens: 0.000075,
-    outputPer1kTokens: 0.0003
-  },
-  'gemini-3-pro-image-preview': {
-    id: 'gemini-3-pro-image-preview',
-    displayName: 'Gemini 3 Pro Image (2K)',
-    type: 'image',
-    rates: { perImage: 0.04 },
-    perImage: 0.04
-  },
-  'imagen-3-fast': {
-    id: 'imagen-3-fast',
-    displayName: 'Imagen 3 Fast',
-    type: 'image',
-    rates: { perImage: 0.01 },
-    perImage: 0.01
-  },
-  'veo-3.1-generate-preview': {
-    id: 'veo-3.1-generate-preview',
-    displayName: 'Veo 3.1 Cinema',
-    type: 'video',
-    rates: { perVideo: 0.10 },
-    perVideo: 0.10
-  },
-  'veo-2-generate-preview': {
-    id: 'veo-2-generate-preview',
-    displayName: 'Veo 2 Economy',
-    type: 'video',
-    rates: { perVideo: 0.03 },
-    perVideo: 0.03
-  },
-  'gemini-2.5-flash-preview-tts': {
-    id: 'gemini-2.5-flash-preview-tts',
-    displayName: 'Gemini TTS',
-    type: 'tts',
-    rates: { per1kChars: 0.002 },
-    per1kChars: 0.002
-  },
-
-  // Active Production & Budget Extended Models
+  // Active Gemini 3.x Models
   'gemini-3.1-pro-preview': {
     id: 'gemini-3.1-pro-preview',
     displayName: 'Gemini 3.1 Pro',
@@ -159,17 +89,17 @@ export const MODEL_REGISTRY: Record<string, ModelPricingEntry> = {
     inputPer1kTokens: 0.002,
     outputPer1kTokens: 0.012
   },
-  'gemini-2.5-pro': {
-    id: 'gemini-2.5-pro',
-    displayName: 'Gemini 2.5 Pro',
+  'gemini-3.8-flash': {
+    id: 'gemini-3.8-flash',
+    displayName: 'Gemini 3.8 Flash',
     type: 'token',
-    rates: { inputPer1kTokens: 0.00125, outputPer1kTokens: 0.005 },
-    inputPer1kTokens: 0.00125,
-    outputPer1kTokens: 0.005
+    rates: { inputPer1kTokens: 0.0003, outputPer1kTokens: 0.0025 },
+    inputPer1kTokens: 0.0003,
+    outputPer1kTokens: 0.0025
   },
-  'gemini-2.5-flash-lite': {
-    id: 'gemini-2.5-flash-lite',
-    displayName: 'Gemini 2.5 Flash Lite',
+  'gemini-3.5-flash-lite': {
+    id: 'gemini-3.5-flash-lite',
+    displayName: 'Gemini 3.5 Flash Lite',
     type: 'token',
     rates: { inputPer1kTokens: 0.0001, outputPer1kTokens: 0.0004 },
     inputPer1kTokens: 0.0001,
@@ -177,7 +107,7 @@ export const MODEL_REGISTRY: Record<string, ModelPricingEntry> = {
   },
   'gemini-3-pro-image': {
     id: 'gemini-3-pro-image',
-    displayName: 'Gemini 3 Pro Image (HQ)',
+    displayName: 'Gemini 3 Pro Image',
     type: 'image',
     rates: { perImage: 0.134 },
     perImage: 0.134
@@ -189,6 +119,13 @@ export const MODEL_REGISTRY: Record<string, ModelPricingEntry> = {
     rates: { perImage: 0.067 },
     perImage: 0.067
   },
+  'veo-3.1-generate-preview': {
+    id: 'veo-3.1-generate-preview',
+    displayName: 'Veo 3.1 Cinema',
+    type: 'video',
+    rates: { perVideo: 2.00 },
+    perVideo: 2.00
+  },
   'veo-3.1-lite-generate-preview': {
     id: 'veo-3.1-lite-generate-preview',
     displayName: 'Veo 3.1 Lite',
@@ -196,52 +133,38 @@ export const MODEL_REGISTRY: Record<string, ModelPricingEntry> = {
     rates: { perVideo: 0.25 },
     perVideo: 0.25
   },
-  'imagen-3.0-fast-generate-001': {
-    id: 'imagen-3.0-fast-generate-001',
-    displayName: 'Imagen 3 Fast (v001)',
-    type: 'image',
-    rates: { perImage: 0.01 },
-    perImage: 0.01
-  },
-  'imagen-3.0-generate-002': {
-    id: 'imagen-3.0-generate-002',
-    displayName: 'Imagen 3 Standard',
-    type: 'image',
-    rates: { perImage: 0.03 },
-    perImage: 0.03
-  },
-  'veo-2.0-generate-001': {
-    id: 'veo-2.0-generate-001',
-    displayName: 'Veo 2.0 Standard',
-    type: 'video',
-    rates: { perVideo: 0.03 },
-    perVideo: 0.03
+  'gemini-3.1-flash-tts-preview': {
+    id: 'gemini-3.1-flash-tts-preview',
+    displayName: 'Gemini 3.1 Flash TTS',
+    type: 'tts',
+    rates: { per1kChars: 0.002 },
+    per1kChars: 0.002
   }
 };
 
 export const CANONICAL_MODEL_PRESETS: Record<ModelTier, StageModelConfig> = {
   pro: {
-    planning: 'gemini-3-pro-preview',
-    infographic: 'gemini-3-pro-image-preview',
-    assembled: 'gemini-3-pro-image-preview',
+    planning: 'gemini-3.1-pro-preview',
+    infographic: 'gemini-3-pro-image',
+    assembled: 'gemini-3-pro-image',
     video: 'veo-3.1-generate-preview',
-    narration: 'gemini-flash-lite-latest',
+    narration: 'gemini-3.5-flash-lite',
     enableVideo: true
   },
   budget: {
-    planning: 'gemini-2.5-flash',
-    infographic: 'imagen-3-fast',
-    assembled: 'imagen-3-fast',
-    video: 'veo-2-generate-preview',
-    narration: 'gemini-flash-lite-latest',
+    planning: 'gemini-3.8-flash',
+    infographic: 'gemini-3.1-flash-image',
+    assembled: 'gemini-3.1-flash-image',
+    video: 'veo-3.1-lite-generate-preview',
+    narration: 'gemini-3.5-flash-lite',
     enableVideo: false
   },
   custom: {
-    planning: 'gemini-3-pro-preview',
-    infographic: 'gemini-3-pro-image-preview',
-    assembled: 'gemini-3-pro-image-preview',
+    planning: 'gemini-3.1-pro-preview',
+    infographic: 'gemini-3-pro-image',
+    assembled: 'gemini-3-pro-image',
     video: 'veo-3.1-generate-preview',
-    narration: 'gemini-flash-lite-latest',
+    narration: 'gemini-3.5-flash-lite',
     enableVideo: true
   }
 };
@@ -251,19 +174,19 @@ export const MODEL_PRESETS: Record<'pro' | 'budget', ModelPreset> = {
     id: 'pro',
     name: 'Pro Studio',
     tagline: 'Premier Quality',
-    description: 'Gemini 3 Pro deconstruction, 2K HD visuals, and cinematic Veo 3.1 video animation.',
+    description: 'Gemini 3.1 Pro deconstruction, 2K HD visuals, and cinematic Veo 3.1 video animation.',
     badgeColor: 'from-amber-400 to-orange-500',
     config: CANONICAL_MODEL_PRESETS.pro,
-    estimatedCost: 0.18705,
+    estimatedCost: 2.2842,
   },
   budget: {
     id: 'budget',
     name: 'Budget Saver',
     tagline: 'Credit Conserver',
-    description: 'Fast Flash planning, cost-efficient Imagen 3 visuals, and video disabled by default.',
+    description: 'Fast Flash planning, cost-efficient Gemini 3.1 Flash visuals, and video disabled by default.',
     badgeColor: 'from-emerald-400 to-cyan-500',
     config: CANONICAL_MODEL_PRESETS.budget,
-    estimatedCost: 0.02187,
+    estimatedCost: 0.13985,
   },
 };
 
@@ -327,13 +250,13 @@ export function estimateRunCost(
   const infoCost = calculateModelCost(config.infographic, 0, 0, undefined, registry);
   // Assembled: 1 image
   const assemCost = calculateModelCost(config.assembled, 0, 0, undefined, registry);
-  // Deep Dive (Gemini 2.5 Flash authoring): ~400 in, 800 out
-  const deepCost = calculateModelCost('gemini-2.5-flash', 400, 800, undefined, registry);
+  // Deep Dive (Gemini 3.8 Flash authoring): ~400 in, 800 out
+  const deepCost = calculateModelCost('gemini-3.8-flash', 400, 800, undefined, registry);
   // Video: 1 video (if enabled)
   const videoCost = config.enableVideo ? calculateModelCost(config.video, 0, 0, undefined, registry) : 0;
   // Narration script + TTS: ~200 in, 150 out + ~500 chars TTS
   const scriptCost = calculateModelCost(config.narration, 200, 150, undefined, registry);
-  const ttsCost = calculateModelCost('gemini-2.5-flash-preview-tts', 0, 0, 500, registry);
+  const ttsCost = calculateModelCost('gemini-3.1-flash-tts-preview', 0, 0, 500, registry);
 
   const total = planCost + infoCost + assemCost + deepCost + videoCost + scriptCost + ttsCost;
   return Math.round(total * 100000) / 100000;
@@ -413,7 +336,7 @@ Composition: Centered, clean, museum-grade technical illustration, high resoluti
     - **Conceptual:** A harmonious, unified symbol or scene representing the *mastery* or *completion* of the concept (e.g., a person levitating for meditation).
     - Use the previous exploded view/diagram as the *source of truth* for materials and aesthetics, but show the **assembled/complete** state.`,
 
-  // Step 4: Authoring Deep Dive (Gemini 2.5 Flash + Search)
+  // Step 4: Authoring Deep Dive (Gemini 3.8 Flash + Search)
   DEEP_DIVE: (item: string, components: string[]) => 
     `Research and write a detailed educational "Component Analysis" for: ${item}.
     

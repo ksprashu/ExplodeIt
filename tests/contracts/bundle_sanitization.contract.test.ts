@@ -90,7 +90,7 @@ describe('Contract: Bundle Packaging & Zero-Leak Sanitization (FEAT-06, FEAT-07)
       expect(bundle.manifest.domain).toBe('PHYSICAL');
       expect(bundle.manifest.metaphor).toBe('Exploded View');
       expect(bundle.manifest.modelTier).toBe('pro');
-      expect(bundle.manifest.modelsUsed.planning).toBe('gemini-3-pro-preview');
+      expect(bundle.manifest.modelsUsed.planning).toBe('gemini-3.1-pro-preview');
     });
 
     it('test_feat06_zero_api_key_leakage_assertion: asserts 0 API keys escape to bundle', () => {

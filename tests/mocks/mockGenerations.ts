@@ -102,12 +102,12 @@ export const mockCameraGenerationItem: GenerationItem = {
   audioUrl: DUMMY_AUDIO_DATA_URL,
   hasVideo: true,
   usage: [
-    { model: 'gemini-3-pro-preview', inputTokens: 450, outputTokens: 820, costEstimate: 0.00466 },
-    { model: 'gemini-3-pro-image-preview', inputTokens: 0, outputTokens: 0, costEstimate: 0.04 },
-    { model: 'gemini-3-pro-image-preview', inputTokens: 0, outputTokens: 0, costEstimate: 0.04 },
-    { model: 'gemini-2.5-flash', inputTokens: 320, outputTokens: 650, costEstimate: 0.00029 },
-    { model: 'veo-3.1-generate-preview', inputTokens: 0, outputTokens: 0, costEstimate: 0.10 },
-    { model: 'gemini-flash-lite-latest', inputTokens: 180, outputTokens: 120, costEstimate: 0.00005 }
+    { model: 'gemini-3.1-pro-preview', inputTokens: 450, outputTokens: 820, costEstimate: 0.01074 },
+    { model: 'gemini-3-pro-image', inputTokens: 0, outputTokens: 0, costEstimate: 0.134 },
+    { model: 'gemini-3-pro-image', inputTokens: 0, outputTokens: 0, costEstimate: 0.134 },
+    { model: 'gemini-3.8-flash', inputTokens: 320, outputTokens: 650, costEstimate: 0.00172 },
+    { model: 'veo-3.1-generate-preview', inputTokens: 0, outputTokens: 0, costEstimate: 2.00 },
+    { model: 'gemini-3.5-flash-lite', inputTokens: 180, outputTokens: 120, costEstimate: 0.00007 }
   ]
 };
 
@@ -130,10 +130,10 @@ export const mockBudgetGenerationItem: GenerationItem = {
   audioUrl: DUMMY_AUDIO_DATA_URL,
   hasVideo: false,
   usage: [
-    { model: 'gemini-2.5-flash', inputTokens: 250, outputTokens: 400, costEstimate: 0.00018 },
-    { model: 'imagen-3-fast', inputTokens: 0, outputTokens: 0, costEstimate: 0.01 },
-    { model: 'imagen-3-fast', inputTokens: 0, outputTokens: 0, costEstimate: 0.01 },
-    { model: 'gemini-flash-lite-latest', inputTokens: 120, outputTokens: 90, costEstimate: 0.00003 }
+    { model: 'gemini-3.8-flash', inputTokens: 250, outputTokens: 400, costEstimate: 0.00108 },
+    { model: 'gemini-3.1-flash-image', inputTokens: 0, outputTokens: 0, costEstimate: 0.067 },
+    { model: 'gemini-3.1-flash-image', inputTokens: 0, outputTokens: 0, costEstimate: 0.067 },
+    { model: 'gemini-3.5-flash-lite', inputTokens: 120, outputTokens: 90, costEstimate: 0.00005 }
   ]
 };
 

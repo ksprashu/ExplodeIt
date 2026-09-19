@@ -11,18 +11,18 @@ import {
   PROMPTS, 
   PlanSchema 
 } from '../constants';
-import { revokeGenerationAssets, setGlobalApiKey } from '../services/geminiService';
+import { revokeGenerationAssets, setGlobalApiKey, calculateCost } from '../services/geminiService';
 import { GenerationItem } from '../types';
 
 describe('Constants & Model Configuration', () => {
   it('should define all production Google GenAI model identifiers', () => {
     expect(MODEL_PLANNING).toBe('gemini-3.1-pro-preview');
-    expect(MODEL_AUTHORING).toBe('gemini-2.5-flash');
-    expect(MODEL_SCRIPT).toBe('gemini-2.5-flash-lite');
+    expect(MODEL_AUTHORING).toBe('gemini-3.8-flash');
+    expect(MODEL_SCRIPT).toBe('gemini-3.5-flash-lite');
     expect(MODEL_IMAGE).toBe('gemini-3-pro-image');
     expect(MODEL_VIDEO).toBe('veo-3.1-generate-preview');
-    expect(MODEL_TTS).toBe('gemini-2.5-flash-preview-tts');
-    expect(MODEL_SURPRISE).toBe('gemini-2.5-flash');
+    expect(MODEL_TTS).toBe('gemini-3.1-flash-tts-preview');
+    expect(MODEL_SURPRISE).toBe('gemini-3.8-flash');
   });
 
   it('should have pricing rates defined for all model stages', () => {
@@ -136,3 +136,32 @@ describe('Asset Management & Revocation Logic', () => {
     expect(() => setGlobalApiKey('AIzaSyCustomKeyTest123')).not.toThrow();
   });
 });
+
+describe('Pricing & Cost Calculation via Services', () => {
+  it('should calculate accurate costs for Gemini 3.x models', () => {
+    // Planning: 1,000 in ($0.002), 2,000 out (2 * $0.012 = $0.024) -> $0.026
+    const planCost = calculateCost(MODEL_PLANNING, 1000, 2000);
+    expect(planCost).toBeCloseTo(0.026, 5);
+
+    // Deep Dive / Authoring (Gemini 3.8 Flash): 1,000 in ($0.0003), 2,000 out (2 * $0.0025 = $0.005) -> $0.0053
+    const authorCost = calculateCost(MODEL_AUTHORING, 1000, 2000);
+    expect(authorCost).toBeCloseTo(0.0053, 5);
+
+    // Script (Gemini 3.5 Flash Lite): 1,000 in ($0.0001), 2,000 out (2 * $0.0004 = $0.0008) -> $0.0009
+    const scriptCost = calculateCost(MODEL_SCRIPT, 1000, 2000);
+    expect(scriptCost).toBeCloseTo(0.0009, 5);
+
+    // Media (Image - Gemini 3 Pro Image)
+    const imageCost = calculateCost(MODEL_IMAGE, 0, 0, true);
+    expect(imageCost).toBe(0.134);
+
+    // Media (Video - Veo 3.1)
+    const videoCost = calculateCost(MODEL_VIDEO, 0, 0, true);
+    expect(videoCost).toBe(2.00);
+
+    // TTS: 1,500 chars (passed as input)
+    const ttsCost = calculateCost(MODEL_TTS, 1500, 0);
+    expect(ttsCost).toBeCloseTo(0.003, 5);
+  });
+});
+
