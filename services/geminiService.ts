@@ -17,23 +17,6 @@ import {
 } from "../constants";
 import { trackGeminiCall } from "./analytics";
 
-// Module augmentation for @google/genai Interactions API (v2.x)
-declare module "@google/genai" {
-  interface GoogleGenAI {
-    interactions: {
-      create(params: {
-        model?: string;
-        input: any;
-        tools?: any[];
-        response_format?: any;
-        generation_config?: any;
-        [key: string]: any;
-      }): Promise<any>;
-      get?(params: any): Promise<any>;
-    };
-  }
-}
-
 // Global mutable key state (supports BYOK)
 let globalApiKey = process.env.API_KEY || "";
 
@@ -41,15 +24,15 @@ export const setGlobalApiKey = (key: string) => {
   globalApiKey = key;
 };
 
-const getAI = () => {
+const getAI = (): any => {
   if (!globalApiKey) throw new Error("API Key not configured. Please set your API key.");
-  const ai = new GoogleGenAI({ apiKey: globalApiKey });
+  const ai: any = new GoogleGenAI({ apiKey: globalApiKey });
   if (!ai.interactions) {
-    (ai as any).interactions = {
+    ai.interactions = {
       create: async (params: any) => {
-        if (typeof (ai.models as any)?.generateContent === 'function') {
+        if (typeof ai.models?.generateContent === 'function') {
           const contents = typeof params.input === 'string' ? params.input : JSON.stringify(params.input);
-          const res = await (ai.models as any).generateContent({
+          const res = await ai.models.generateContent({
             model: params.model,
             contents,
             config: {
