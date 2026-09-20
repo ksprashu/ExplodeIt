@@ -460,11 +460,11 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status, onBackToShowcas
                 <div className="text-cyan-500 font-mono text-xs uppercase tracking-widest mb-2 flex items-center gap-2">
                     <span className="bg-cyan-500/10 px-2 py-1 rounded">{plan.category}</span>
                 </div>
-                <h2 className="text-4xl md:text-6xl font-black text-white tracking-tight">{plan.displayTitle}</h2>
+                <h2 className="text-3xl sm:text-4xl md:text-6xl font-black text-white tracking-tight break-words">{plan.displayTitle}</h2>
             </div>
-            <div className="flex flex-wrap items-center gap-4">
+            <div className="flex flex-wrap items-center gap-3 sm:gap-4">
                 {audioUrl ? (
-                    <div className="bg-slate-900 border border-slate-700 rounded-full p-1.5 sm:p-1 pr-4 flex items-center gap-2.5 sm:gap-3 shadow-lg shadow-purple-900/20 max-w-full">
+                    <div className="bg-slate-900 border border-slate-700 rounded-2xl sm:rounded-full p-2 sm:p-1.5 sm:pr-4 flex items-center gap-2.5 sm:gap-3 shadow-lg shadow-purple-900/20 max-w-full w-full sm:w-auto">
                         <button 
                             onClick={toggleAudio}
                             className="w-10 h-10 shrink-0 rounded-full bg-purple-600 hover:bg-purple-500 text-white flex items-center justify-center transition-all cursor-pointer shadow-md"
@@ -489,7 +489,7 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status, onBackToShowcas
                             </svg>
                         </button>
 
-                        <div className="flex flex-col justify-center min-w-[140px] sm:min-w-[170px] md:min-w-[200px]">
+                        <div className="flex flex-col justify-center flex-1 min-w-[120px] sm:min-w-[170px] md:min-w-[200px]">
                             <div className="flex items-center justify-between gap-2">
                                 <div className="flex items-center gap-1.5 truncate">
                                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">Audio Guide</span>
@@ -644,7 +644,7 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status, onBackToShowcas
       </div>
 
       {/* 2. Visuals Grid */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 h-auto xl:h-[500px]">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6 h-auto xl:h-[500px]">
         
         {/* Left Slot: Video OR Assembled OR Loading Assembly */}
         <div className="bg-black rounded-2xl border border-slate-800 overflow-hidden shadow-2xl relative flex items-center justify-center aspect-video xl:aspect-auto">
@@ -716,14 +716,14 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status, onBackToShowcas
       </div>
 
       {/* 4. Detailed Content & Trivia Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 pt-8 border-t border-slate-800">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8 pt-8 border-t border-slate-800">
          {/* Main Article */}
          <div className="lg:col-span-2">
             <h3 className="text-2xl font-bold text-white flex items-center gap-3 mb-6">
                 <span className="w-1 h-8 bg-gradient-to-b from-purple-500 to-pink-500 rounded-full block"></span>
                 {plan.sectionTitles?.article || "Encyclopedia Entry"}
             </h3>
-            <div className="bg-slate-900/40 p-8 rounded-2xl border border-slate-800/50">
+            <div className="bg-slate-900/40 p-4 sm:p-8 rounded-2xl border border-slate-800/50">
                 {plan.detailedArticle ? (
                   <div className="prose prose-invert max-w-none">
                     <ReactMarkdown 
@@ -750,7 +750,7 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status, onBackToShowcas
 
          {/* Sidebar / Trivia */}
          <div className="space-y-6">
-             <div className="bg-gradient-to-br from-slate-900 to-slate-950 p-8 rounded-2xl border border-slate-800 relative overflow-hidden group hover:border-slate-700 transition-colors">
+             <div className="bg-gradient-to-br from-slate-900 to-slate-950 p-4 sm:p-8 rounded-2xl border border-slate-800 relative overflow-hidden group hover:border-slate-700 transition-colors">
                 <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2 border-b border-slate-800 pb-4">
                     <span className="text-2xl">💡</span> 
                     {plan.sectionTitles?.trivia || "Did You Know?"}
@@ -768,7 +768,7 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status, onBackToShowcas
              </div>
              
              {/* Tech Specs Decoration */}
-             <div className="bg-slate-950 p-6 rounded-2xl border border-slate-900 opacity-60">
+             <div className="bg-slate-950 p-4 sm:p-6 rounded-2xl border border-slate-900 opacity-60">
                  <div className="text-[10px] text-slate-500 font-mono uppercase tracking-widest mb-4">System Analysis</div>
                  <div className="space-y-2 font-mono text-xs text-slate-600">
                      <div className="flex justify-between"><span>PLANNING</span> <span className="text-slate-400">{getModelLabel(item?.config?.planning, 'GEMINI 3.1 PRO').toUpperCase()}</span></div>

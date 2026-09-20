@@ -42,7 +42,7 @@ const InputArea: React.FC<InputAreaProps> = ({
   };
 
   return (
-    <div className="w-full max-w-3xl mx-auto mb-8">
+    <div className="w-full max-w-3xl mx-auto mb-6 sm:mb-8">
       <form onSubmit={handleSubmit} className="relative group">
         <div className="absolute -inset-0.5 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-xl opacity-30 group-hover:opacity-75 transition duration-500 blur"></div>
         <div className="relative bg-slate-900 rounded-xl p-2 flex flex-col md:flex-row items-center gap-2 border border-slate-700">
@@ -51,12 +51,12 @@ const InputArea: React.FC<InputAreaProps> = ({
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Name an object (e.g., 'Vintage Camera', 'Human Heart')"
-            className="flex-1 bg-transparent text-lg text-white placeholder-slate-500 px-4 py-3 focus:outline-none w-full"
+            className="flex-1 bg-transparent text-base sm:text-lg text-white placeholder-slate-500 px-3 sm:px-4 py-2.5 sm:py-3 focus:outline-none w-full"
             disabled={disabled}
           />
           
-          <div className="flex items-center gap-3 px-2 w-full md:w-auto justify-between sm:justify-end md:justify-start">
-            <label className={`flex items-center gap-2 text-sm select-none whitespace-nowrap transition-colors ${
+          <div className="flex items-center gap-2 sm:gap-3 px-1 sm:px-2 w-full md:w-auto justify-between sm:justify-end md:justify-start">
+            <label className={`flex items-center gap-2 text-xs sm:text-sm select-none whitespace-nowrap min-h-[44px] transition-colors px-1 ${
               disabled ? 'cursor-not-allowed text-slate-500' : 'cursor-pointer text-slate-300 hover:text-white'
             }`}>
               <input 
@@ -66,17 +66,17 @@ const InputArea: React.FC<InputAreaProps> = ({
                 className={`accent-cyan-500 h-4 w-4 ${disabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
                 disabled={disabled}
               />
-              Animate
+              <span>Animate</span>
             </label>
             
             <div className="flex items-center gap-2">
                 <button
                 type="submit"
                 disabled={disabled || !input.trim()}
-                className={`px-6 py-3 rounded-lg font-bold text-white transition-all duration-200 whitespace-nowrap ${
+                className={`px-4 sm:px-6 py-2.5 sm:py-3 min-h-[44px] rounded-lg font-bold text-xs sm:text-sm text-white transition-all duration-200 whitespace-nowrap flex items-center justify-center ${
                     disabled || !input.trim()
                     ? 'bg-slate-700 cursor-not-allowed'
-                    : 'bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 shadow-lg shadow-cyan-500/20 cursor-pointer'
+                    : 'bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 shadow-lg shadow-cyan-500/20 cursor-pointer active:scale-95'
                 }`}
                 title={!input.trim() ? "Enter an object name to generate" : "Generate exploded view"}
                 >
@@ -88,14 +88,14 @@ const InputArea: React.FC<InputAreaProps> = ({
                     onClick={handleSurpriseClick}
                     disabled={disabled}
                     aria-label="Surprise Me"
-                    className={`px-4 py-3 rounded-lg font-bold text-white transition-all duration-200 flex items-center gap-2 ${
+                    className={`px-3 sm:px-4 py-2.5 sm:py-3 min-h-[44px] rounded-lg font-bold text-xs sm:text-sm text-white transition-all duration-200 flex items-center justify-center gap-1.5 sm:gap-2 ${
                         disabled
                         ? 'bg-slate-700 cursor-not-allowed'
-                        : 'bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-400 hover:to-pink-500 shadow-lg shadow-purple-500/20 cursor-pointer'
+                        : 'bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-400 hover:to-pink-500 shadow-lg shadow-purple-500/20 cursor-pointer active:scale-95'
                     }`}
                     title="Generate a random educational object"
                 >
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
                     </svg>
                     <span className="hidden sm:inline">Surprise Me</span>

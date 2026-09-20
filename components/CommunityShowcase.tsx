@@ -470,7 +470,7 @@ export const CommunityShowcase: React.FC<CommunityShowcaseProps> = ({
   };
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
+    <div className="w-full max-w-7xl mx-auto px-1 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-8 sm:space-y-12">
       {/* ================================================================== */}
       {/* SECTION 1: HERO FEATURED CAROUSEL */}
       {/* ================================================================== */}
@@ -573,7 +573,7 @@ export const CommunityShowcase: React.FC<CommunityShowcaseProps> = ({
 
                       {/* Title & Metaphor */}
                       <div className="space-y-2">
-                        <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight drop-shadow-md">
+                        <h2 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight drop-shadow-md break-words">
                           {item.topic}
                         </h2>
                         <p className="text-sm sm:text-base text-slate-300 font-light flex items-center gap-2">

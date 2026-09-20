@@ -24,10 +24,47 @@ export const setGlobalApiKey = (key: string) => {
   globalApiKey = key;
 };
 
+export type ThinkingLevel = 'minimal' | 'low' | 'medium' | 'high';
+
+/**
+ * Defensively normalizes thinking level values to supported lowercase strings:
+ * 'minimal' | 'low' | 'medium' | 'high'
+ */
+export const normalizeThinkingLevel = (level: any): ThinkingLevel | undefined => {
+  if (typeof level !== 'string') return undefined;
+  const normalized = level.trim().toLowerCase();
+  const valid: ThinkingLevel[] = ['minimal', 'low', 'medium', 'high'];
+  return valid.includes(normalized as ThinkingLevel) ? (normalized as ThinkingLevel) : undefined;
+};
+
 export const getAI = (): any => {
   if (!globalApiKey) throw new Error("API Key not configured. Please set your API key.");
   const ai: any = new GoogleGenAI({ apiKey: globalApiKey });
-  if (!ai.interactions) {
+  if (ai.interactions && typeof ai.interactions.create === 'function') {
+    const originalCreate = ai.interactions.create.bind(ai.interactions);
+    ai.interactions.create = async (params: any) => {
+      const normalizedParams = { ...params };
+      if (normalizedParams.generation_config) {
+        normalizedParams.generation_config = { ...normalizedParams.generation_config };
+        if (normalizedParams.generation_config.thinking_level !== undefined) {
+          const norm = normalizeThinkingLevel(normalizedParams.generation_config.thinking_level);
+          if (norm) {
+            normalizedParams.generation_config.thinking_level = norm;
+          } else {
+            delete normalizedParams.generation_config.thinking_level;
+          }
+        }
+        if (normalizedParams.generation_config.thinkingLevel !== undefined) {
+          const norm = normalizeThinkingLevel(normalizedParams.generation_config.thinkingLevel);
+          if (norm && !normalizedParams.generation_config.thinking_level) {
+            normalizedParams.generation_config.thinking_level = norm;
+          }
+          delete normalizedParams.generation_config.thinkingLevel;
+        }
+      }
+      return originalCreate(normalizedParams);
+    };
+  } else if (!ai.interactions) {
     ai.interactions = {
       create: async (params: any) => {
         if (typeof ai.models?.generateContent === 'function') {
@@ -76,7 +113,7 @@ export const getAI = (): any => {
 
           const genConfig = params.generation_config || params.generationConfig;
 
-          const thinkingLevel = 
+          const rawThinkingLevel = 
             genConfig?.thinking_level ||
             genConfig?.thinkingLevel ||
             genConfig?.thinking_config?.thinking_level ||
@@ -85,6 +122,8 @@ export const getAI = (): any => {
             genConfig?.thinkingConfig?.thinkingLevel ||
             params.thinkingConfig?.thinkingLevel ||
             params.thinkingConfig?.thinking_level;
+
+          const thinkingLevel = normalizeThinkingLevel(rawThinkingLevel);
 
           const thinkingBudget =
             genConfig?.thinking_budget ??
@@ -347,22 +386,31 @@ export interface GenerateVideoOptions {
     videoDisassemblyPrompt?: string;
 }
 
-// 2. PLAN OBJECT (Gemini 3.1 Pro Preview)
+// 2. PLAN OBJECT (Gemini 3.8 Flash High-Thinking)
 export const planObject = async (
     itemName: string,
-    stageModelOverride?: string | Partial<StageModelConfig>
+    stageModelOverride?: string | Partial<StageModelConfig> | { thinking_level?: string; thinkingLevel?: string }
 ): Promise<{ data: ObjectPlan; usage: TokenUsage }> => {
     const ai = getAI();
     const model = (typeof stageModelOverride === 'string' 
         ? stageModelOverride 
-        : stageModelOverride?.planning) || MODEL_PLANNING;
+        : (stageModelOverride as any)?.planning) || MODEL_PLANNING;
+    
+    let thinkingLevel: ThinkingLevel = 'high';
+    if (typeof stageModelOverride === 'object' && stageModelOverride !== null) {
+        const norm = normalizeThinkingLevel((stageModelOverride as any).thinking_level) ||
+                     normalizeThinkingLevel((stageModelOverride as any).thinkingLevel);
+        if (norm) {
+            thinkingLevel = norm;
+        }
+    }
     
     return callWithRetry(async () => {
         const interaction = await ai.interactions.create({
             model: model,
             input: PROMPTS.PLAN_OBJECT(itemName),
             tools: [{ type: "google_search" }],
-            generation_config: { thinking_level: 'HIGH' },
+            generation_config: { thinking_level: thinkingLevel },
             response_format: {
                 type: "text",
                 mime_type: "application/json",

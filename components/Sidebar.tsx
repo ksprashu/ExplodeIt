@@ -21,6 +21,8 @@ interface SidebarProps {
   onOpenModelSettings?: () => void;
   catalogItems?: CommunityCatalogItem[];
   onSelectCatalogItem?: (item: CommunityCatalogItem) => void;
+  isOpenMobile?: boolean;
+  onCloseMobile?: () => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ 
@@ -35,6 +37,8 @@ const Sidebar: React.FC<SidebarProps> = ({
   onOpenModelSettings,
   catalogItems,
   onSelectCatalogItem,
+  isOpenMobile = false,
+  onCloseMobile,
 }) => {
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
 
@@ -98,10 +102,21 @@ const Sidebar: React.FC<SidebarProps> = ({
   }, [currentConfig]);
 
   return (
-    <aside className="w-full md:w-80 bg-slate-900 border-r border-slate-800 flex flex-col h-screen h-[100dvh] sticky top-0 overflow-hidden shrink-0 shadow-2xl z-20">
-      <div className="p-8 border-b border-slate-800 flex flex-col items-start gap-4 bg-slate-950/50">
-        <div className="w-12 h-12 bg-gradient-to-tr from-cyan-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-cyan-500/20">
-            <svg viewBox="0 0 24 24" fill="none" className="w-8 h-8 text-white" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <aside 
+      className={`
+        fixed inset-y-0 left-0 z-50 w-[85vw] max-w-xs sm:max-w-sm
+        md:static md:z-20 md:w-80 md:max-w-none md:shrink-0
+        bg-slate-900 border-r border-slate-800 flex flex-col h-screen h-[100dvh] overflow-hidden shadow-2xl
+        transition-transform duration-300 ease-in-out
+        ${isOpenMobile ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+      `}
+      aria-label="Exploration Sidebar"
+      data-testid="app-sidebar"
+    >
+      <div className="p-5 md:p-8 border-b border-slate-800 flex items-center justify-between bg-slate-950/50">
+        <div className="flex items-center gap-3 md:flex-col md:items-start md:gap-4">
+          <div className="w-10 h-10 md:w-12 md:h-12 bg-gradient-to-tr from-cyan-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-cyan-500/20 shrink-0">
+            <svg viewBox="0 0 24 24" fill="none" className="w-6 h-6 md:w-8 md:h-8 text-white" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
                 <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
                 <line x1="12" y1="22.08" x2="12" y2="12" />
@@ -109,13 +124,29 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <path d="M8 5l2 2" className="opacity-50" />
                 <path d="M16 5l-2 2" className="opacity-50" />
             </svg>
-        </div>
-        <div>
-            <h1 className="text-3xl font-black bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent tracking-tight">
-            ExplodeIt
+          </div>
+          <div>
+            <h1 className="text-2xl md:text-3xl font-black bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent tracking-tight">
+              ExplodeIt
             </h1>
-            <p className="text-sm text-slate-400 font-medium mt-1">Learn anything, with Gemini 3</p>
+            <p className="text-xs md:text-sm text-slate-400 font-medium mt-0.5 md:mt-1">Learn anything, with Gemini 3</p>
+          </div>
         </div>
+
+        {/* Mobile Close Button */}
+        {onCloseMobile && (
+          <button
+            type="button"
+            onClick={onCloseMobile}
+            className="md:hidden p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center"
+            aria-label="Close menu"
+            data-testid="mobile-sidebar-close"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-5">
@@ -143,7 +174,10 @@ const Sidebar: React.FC<SidebarProps> = ({
               return (
                 <button
                   key={item.id}
-                  onClick={() => onSelect(item)}
+                  onClick={() => {
+                    onSelect(item);
+                    onCloseMobile?.();
+                  }}
                   className={`w-full text-left p-3.5 rounded-xl transition-all duration-200 border group cursor-pointer ${
                     currentId === item.id 
                     ? 'bg-slate-800 border-cyan-500/50 text-cyan-50 shadow-md ring-1 ring-cyan-500/30' 
@@ -254,6 +288,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                                 if (onSelectCatalogItem) {
                                   onSelectCatalogItem(item);
                                 }
+                                onCloseMobile?.();
                               }}
                               className={`w-full text-left p-2.5 rounded-lg border transition-all duration-200 text-xs cursor-pointer group ${
                                 isSelected

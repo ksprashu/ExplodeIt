@@ -92,7 +92,7 @@ describe('Challenger 1: R1 & R4 Adversarial Verification Harness', () => {
   // Dimension 1: Parameter Propagation (planObject & generation_config.thinking_level)
   // =========================================================================
   describe('Dimension 1: Parameter Propagation in planObject', () => {
-    it('propagates generation_config: { thinking_level: HIGH } by default and omits top-level thinkingConfig', async () => {
+    it('propagates generation_config: { thinking_level: high } by default and omits top-level thinkingConfig', async () => {
       mockInteractionsCreate.mockResolvedValueOnce({
         output_text: JSON.stringify(createDummyPlan()),
         usage: { total_input_tokens: 500, total_output_tokens: 1000 }
@@ -103,7 +103,7 @@ describe('Challenger 1: R1 & R4 Adversarial Verification Harness', () => {
       expect(mockInteractionsCreate).toHaveBeenCalledTimes(1);
       const callArgs = mockInteractionsCreate.mock.calls[0][0];
       expect(callArgs.thinkingConfig).toBeUndefined();
-      expect(callArgs.generation_config).toEqual({ thinking_level: 'HIGH' });
+      expect(callArgs.generation_config).toEqual({ thinking_level: 'high' });
     });
 
     it('maintains generation_config.thinking_level and omits thinkingConfig when stageModelOverride is a string model ID', async () => {
@@ -118,7 +118,7 @@ describe('Challenger 1: R1 & R4 Adversarial Verification Harness', () => {
       const callArgs = mockInteractionsCreate.mock.calls[0][0];
       expect(callArgs.model).toBe('gemini-3.8-flash');
       expect(callArgs.thinkingConfig).toBeUndefined();
-      expect(callArgs.generation_config).toEqual({ thinking_level: 'HIGH' });
+      expect(callArgs.generation_config).toEqual({ thinking_level: 'high' });
     });
 
     it('maintains generation_config.thinking_level and omits thinkingConfig when stageModelOverride is a StageModelConfig object', async () => {
@@ -133,7 +133,31 @@ describe('Challenger 1: R1 & R4 Adversarial Verification Harness', () => {
       const callArgs = mockInteractionsCreate.mock.calls[0][0];
       expect(callArgs.model).toBe('custom-model-id');
       expect(callArgs.thinkingConfig).toBeUndefined();
-      expect(callArgs.generation_config).toEqual({ thinking_level: 'HIGH' });
+      expect(callArgs.generation_config).toEqual({ thinking_level: 'high' });
+    });
+
+    it('supports all valid thinking levels (minimal, low, medium, high) and normalizes uppercase strings', async () => {
+      const validLevels = ['minimal', 'low', 'medium', 'high'] as const;
+      for (const level of validLevels) {
+        mockInteractionsCreate.mockResolvedValueOnce({
+          output_text: JSON.stringify(createDummyPlan()),
+          usage: { total_input_tokens: 500, total_output_tokens: 1000 }
+        });
+
+        await planObject('Mechanical Watch', { thinking_level: level });
+        const callArgs = mockInteractionsCreate.mock.calls[mockInteractionsCreate.mock.calls.length - 1][0];
+        expect(callArgs.generation_config.thinking_level).toBe(level);
+
+        // Test uppercase
+        mockInteractionsCreate.mockResolvedValueOnce({
+          output_text: JSON.stringify(createDummyPlan()),
+          usage: { total_input_tokens: 500, total_output_tokens: 1000 }
+        });
+
+        await planObject('Mechanical Watch', { thinking_level: level.toUpperCase() });
+        const callArgsUpper = mockInteractionsCreate.mock.calls[mockInteractionsCreate.mock.calls.length - 1][0];
+        expect(callArgsUpper.generation_config.thinking_level).toBe(level);
+      }
     });
 
     it('preserves thinking level configuration in models.generateContent fallback polyfill when interactions is undefined', async () => {
@@ -147,8 +171,8 @@ describe('Challenger 1: R1 & R4 Adversarial Verification Harness', () => {
       expect(res.data.displayTitle).toBe('Vintage SLR Camera');
       expect(mockGenerateContent).toHaveBeenCalledTimes(1);
       const callArgs = mockGenerateContent.mock.calls[0][0];
-      expect(callArgs.config.thinking_level).toBe('HIGH');
-      expect(callArgs.config.thinkingConfig).toEqual({ thinkingLevel: 'HIGH' });
+      expect(callArgs.config.thinking_level).toBe('high');
+      expect(callArgs.config.thinkingConfig).toEqual({ thinkingLevel: 'high' });
     });
 
     it('maps camelCase generation_config.thinkingLevel to thinkingConfig and thinking_level in fallback polyfill', async () => {
@@ -167,8 +191,8 @@ describe('Challenger 1: R1 & R4 Adversarial Verification Harness', () => {
 
       expect(mockGenerateContent).toHaveBeenCalledTimes(1);
       const callArgs = mockGenerateContent.mock.calls[0][0];
-      expect(callArgs.config.thinking_level).toBe('LOW');
-      expect(callArgs.config.thinkingConfig).toEqual({ thinkingLevel: 'LOW' });
+      expect(callArgs.config.thinking_level).toBe('low');
+      expect(callArgs.config.thinkingConfig).toEqual({ thinkingLevel: 'low' });
     });
 
     it('preserves nested generation_config.thinkingConfig with thinkingBudget in fallback polyfill', async () => {
@@ -272,9 +296,9 @@ describe('Challenger 1: R1 & R4 Adversarial Verification Harness', () => {
 
       expect(mockGenerateContent).toHaveBeenCalledTimes(1);
       const callArgs = mockGenerateContent.mock.calls[0][0];
-      expect(callArgs.config.thinking_level).toBe('HIGH');
+      expect(callArgs.config.thinking_level).toBe('high');
       expect(callArgs.config.thinkingConfig).toEqual({
-        thinkingLevel: 'HIGH',
+        thinkingLevel: 'high',
         thinkingBudget: 4096
       });
       expect(res.usage.total_tokens).toBe(75);
@@ -304,7 +328,7 @@ describe('Challenger 1: R1 & R4 Adversarial Verification Harness', () => {
       const callArgs = mockGenerateContent.mock.calls[0][0];
       expect(callArgs.config.thinkingConfig).toEqual({
         thinkingBudget: 1024,
-        thinkingLevel: 'LOW',
+        thinkingLevel: 'low',
         includeThoughts: true
       });
       // Verify snake_case keys are strictly absent from thinkingConfig

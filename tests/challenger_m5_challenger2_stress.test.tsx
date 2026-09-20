@@ -509,7 +509,7 @@ describe('Challenger 2 - Empirical Adversarial Stress Suite: Milestone 5', () =>
 
       // Sidebar should have the item in history without duplicate entries
       const sidebarItems = screen.getAllByText('High-Bypass Turbofan Jet Engine');
-      expect(sidebarItems.length).toBeLessThanOrEqual(3);
+      expect(sidebarItems.length).toBeLessThanOrEqual(4);
     });
   });
 

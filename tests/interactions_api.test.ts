@@ -172,12 +172,38 @@ describe('Gemini Interactions API v2.3+ Integration Suite', () => {
       expect(callArgs.model).toBe(MODEL_PLANNING);
       expect(callArgs.tools).toEqual([{ type: 'google_search' }]);
       expect(callArgs.thinkingConfig).toBeUndefined();
-      expect(callArgs.generation_config).toEqual({ thinking_level: 'HIGH' });
+      expect(callArgs.generation_config).toEqual({ thinking_level: 'high' });
       expect(callArgs.response_format).toEqual({
         type: 'text',
         mime_type: 'application/json',
         schema: PlanSchema
       });
+    });
+
+    it('planObject: supports all valid thinking levels (minimal, low, medium, high) and defensively normalizes uppercase', async () => {
+      const mockPlan = createDummyPlan();
+      const levels: Array<'minimal' | 'low' | 'medium' | 'high'> = ['minimal', 'low', 'medium', 'high'];
+
+      for (const level of levels) {
+        mockInteractionsCreate.mockResolvedValueOnce({
+          output_text: JSON.stringify(mockPlan),
+          usage: { total_input_tokens: 100, total_output_tokens: 200 }
+        });
+
+        // Test lowercase
+        await planObject('Vintage SLR Camera', { thinking_level: level });
+        const callArgs = mockInteractionsCreate.mock.calls[mockInteractionsCreate.mock.calls.length - 1][0];
+        expect(callArgs.generation_config.thinking_level).toBe(level);
+
+        // Test uppercase defensive normalization
+        mockInteractionsCreate.mockResolvedValueOnce({
+          output_text: JSON.stringify(mockPlan),
+          usage: { total_input_tokens: 100, total_output_tokens: 200 }
+        });
+        await planObject('Vintage SLR Camera', { thinking_level: level.toUpperCase() });
+        const callArgsUpper = mockInteractionsCreate.mock.calls[mockInteractionsCreate.mock.calls.length - 1][0];
+        expect(callArgsUpper.generation_config.thinking_level).toBe(level);
+      }
     });
 
     it('planObject: fallback polyfill routes to models.generateContent preserving thinking level configuration when interactions is unavailable', async () => {
@@ -204,11 +230,11 @@ describe('Gemini Interactions API v2.3+ Integration Suite', () => {
       expect(genArgs.model).toBe(MODEL_PLANNING);
       expect(genArgs.config.responseMimeType).toBe('application/json');
       expect(genArgs.config.responseSchema).toEqual(PlanSchema);
-      expect(genArgs.config.thinking_level).toBe('HIGH');
-      expect(genArgs.config.thinkingConfig).toEqual({ thinkingLevel: 'HIGH' });
+      expect(genArgs.config.thinking_level).toBe('high');
+      expect(genArgs.config.thinkingConfig).toEqual({ thinkingLevel: 'high' });
     });
 
-    it('fallback polyfill gracefully maps legacy top-level thinkingConfig to config.thinkingConfig', async () => {
+    it('fallback polyfill gracefully maps legacy top-level thinkingConfig to config.thinkingConfig with lowercase normalization', async () => {
       mockInteractionsAvailable = false;
       mockGenerateContent.mockResolvedValueOnce({
         text: 'Legacy test response',
@@ -225,8 +251,8 @@ describe('Gemini Interactions API v2.3+ Integration Suite', () => {
       expect(res.output_text).toBe('Legacy test response');
       expect(mockGenerateContent).toHaveBeenCalledTimes(1);
       const genArgs = mockGenerateContent.mock.calls[0][0];
-      expect(genArgs.config.thinkingConfig).toEqual({ thinkingLevel: 'HIGH' });
-      expect(genArgs.config.thinking_level).toBe('HIGH');
+      expect(genArgs.config.thinkingConfig).toEqual({ thinkingLevel: 'high' });
+      expect(genArgs.config.thinking_level).toBe('high');
     });
 
     it('enrichComponentDetails: queries interactions.create and parses url_citation annotations', async () => {

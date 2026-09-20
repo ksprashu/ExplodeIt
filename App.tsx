@@ -323,6 +323,9 @@ const App: React.FC = () => {
     type: 'info' | 'warning' | 'error';
   } | null>(null);
 
+  // Mobile Drawer State
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
+
   const hydrateCatalogItem = async (
     topic: CommunityCatalogItem,
     options?: { isPopState?: boolean; navId?: number }
@@ -574,6 +577,19 @@ const App: React.FC = () => {
       window.removeEventListener('popstate', handlePopState);
     };
   }, []);
+
+  // Close mobile sidebar on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isMobileSidebarOpen) {
+        setIsMobileSidebarOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isMobileSidebarOpen]);
 
   const initializeApiKey = () => {
     let resolvedKey: string | null = null;
@@ -1084,6 +1100,17 @@ const App: React.FC = () => {
         </div>
       )}
 
+      {/* Mobile Sidebar Backdrop */}
+      {isMobileSidebarOpen && (
+        <div 
+          role="presentation"
+          aria-hidden="true"
+          onClick={() => setIsMobileSidebarOpen(false)}
+          className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40 md:hidden animate-fade-in cursor-pointer"
+          data-testid="mobile-sidebar-backdrop"
+        />
+      )}
+
       <Sidebar 
         history={history} 
         currentId={currentId} 
@@ -1095,6 +1122,7 @@ const App: React.FC = () => {
             if (!isProcessing) {
               setStatus(GenerationStatus.IDLE); 
             }
+            setIsMobileSidebarOpen(false);
             syncUrlToExploration(item.id, 'push');
         }}
         onClear={handleClearHistory}
@@ -1104,10 +1132,15 @@ const App: React.FC = () => {
         currentConfig={modelPreferences.config}
         onOpenModelSettings={() => setIsModelSettingsOpen(true)}
         catalogItems={catalog}
-        onSelectCatalogItem={handleSelectShowcaseTopic}
+        onSelectCatalogItem={(topic) => {
+            setIsMobileSidebarOpen(false);
+            handleSelectShowcaseTopic(topic);
+        }}
+        isOpenMobile={isMobileSidebarOpen}
+        onCloseMobile={() => setIsMobileSidebarOpen(false)}
       />
 
-      <main className="flex-1 flex flex-col h-screen h-[100dvh] overflow-hidden relative">
+      <main className="flex-1 flex flex-col h-screen h-[100dvh] overflow-hidden relative w-full min-w-0">
         
         {/* Background Elements */}
         <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-slate-950 -z-10"></div>
@@ -1123,9 +1156,11 @@ const App: React.FC = () => {
           onNavigateHome={handleBackToShowcase}
           onShare={handleShareCurrentItem}
           isViewingTopic={currentItem !== null}
+          isMobileSidebarOpen={isMobileSidebarOpen}
+          onToggleMobileSidebar={() => setIsMobileSidebarOpen(prev => !prev)}
         />
 
-        <div className="flex-1 overflow-y-auto p-6 md:p-12 scroll-smooth">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-6 md:p-12 scroll-smooth">
           
           <InputArea 
             onSubmit={(prompt, withVideo) => handleGenerate(prompt, withVideo)}

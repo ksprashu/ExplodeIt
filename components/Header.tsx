@@ -10,6 +10,8 @@ export interface HeaderProps {
   onNavigateHome?: () => void;
   onShare?: () => void;
   isViewingTopic?: boolean;
+  isMobileSidebarOpen?: boolean;
+  onToggleMobileSidebar?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -21,46 +23,71 @@ export const Header: React.FC<HeaderProps> = ({
   onNavigateHome,
   onShare,
   isViewingTopic = false,
+  isMobileSidebarOpen = false,
+  onToggleMobileSidebar,
 }) => {
   const hasKey = Boolean(apiKey && apiKey.trim().length > 0);
 
   return (
-    <header className="w-full bg-slate-950/80 backdrop-blur-md border-b border-slate-800/80 px-4 md:px-8 py-3 flex flex-wrap items-center justify-between gap-3 shrink-0 z-10">
-      {/* Left: Branding, Navigation Breadcrumb & Hosted Badges */}
-      <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+    <header className="w-full bg-slate-950/80 backdrop-blur-md border-b border-slate-800/80 px-3 sm:px-4 md:px-8 py-2.5 sm:py-3 flex flex-wrap items-center justify-between gap-2 sm:gap-3 shrink-0 z-30">
+      {/* Left: Mobile Menu Toggle, Branding, Navigation Breadcrumb & Hosted Badges */}
+      <div className="flex items-center gap-1.5 sm:gap-3">
+        {/* Mobile Hamburger Menu Toggle Button (< md) */}
+        {onToggleMobileSidebar && (
+          <button
+            type="button"
+            onClick={onToggleMobileSidebar}
+            className="md:hidden p-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-cyan-300 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 cursor-pointer transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center shrink-0"
+            aria-label={isMobileSidebarOpen ? "Close menu" : "Open menu"}
+            aria-expanded={Boolean(isMobileSidebarOpen)}
+            data-testid="mobile-menu-toggle"
+          >
+            {isMobileSidebarOpen ? (
+              <svg className="w-5 h-5 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            ) : (
+              <svg className="w-5 h-5 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            )}
+          </button>
+        )}
+
         {/* Home / Back to Showcase Action */}
         {isViewingTopic && onNavigateHome ? (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             <button
               type="button"
               onClick={onNavigateHome}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-xs font-semibold text-cyan-300 hover:text-cyan-200 transition-all shadow-sm group cursor-pointer"
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-xs font-semibold text-cyan-300 hover:text-cyan-200 transition-all shadow-sm group cursor-pointer min-h-[36px]"
               title="Return to Community Showcase carousel"
             >
-              <svg className="w-3.5 h-3.5 text-cyan-400 group-hover:-translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <svg className="w-3.5 h-3.5 text-cyan-400 group-hover:-translate-x-0.5 transition-transform shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
               </svg>
-              <span>← Back to Showcase</span>
+              <span className="hidden sm:inline">← Back to Showcase</span>
+              <span className="sm:hidden">← Back</span>
             </button>
             {onShare && (
               <button
                 type="button"
                 onClick={onShare}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-xs font-semibold text-slate-300 hover:text-cyan-200 transition-all shadow-sm group cursor-pointer"
+                className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-xs font-semibold text-slate-300 hover:text-cyan-200 transition-all shadow-sm group cursor-pointer min-h-[36px]"
                 title="Share this exploration"
                 aria-label="Share exploration"
               >
-                <svg className="w-3.5 h-3.5 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <svg className="w-3.5 h-3.5 text-cyan-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
                 </svg>
-                <span>Share</span>
+                <span className="hidden sm:inline">Share</span>
               </button>
             )}
           </div>
         ) : (
           <div className="flex items-center gap-2 cursor-pointer" onClick={onNavigateHome}>
-            <div className="w-8 h-8 bg-gradient-to-tr from-cyan-500 to-blue-600 rounded-lg flex items-center justify-center shadow-md shadow-cyan-500/20">
-              <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5 text-white" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <div className="w-8 h-8 bg-gradient-to-tr from-cyan-500 to-blue-600 rounded-lg flex items-center justify-center shadow-md shadow-cyan-500/20 shrink-0">
+              <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5 text-white" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
                 <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
                 <line x1="12" y1="22.08" x2="12" y2="12" />
@@ -89,15 +116,15 @@ export const Header: React.FC<HeaderProps> = ({
           title="Direct client-side execution. Zero server storage of user credentials."
           className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-950/40 border border-emerald-800/60 text-emerald-300 text-xs font-medium"
         >
-          <svg className="w-3.5 h-3.5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg className="w-3.5 h-3.5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
             <path d="m9 12 2 2 4-4" />
           </svg>
           <span className="text-[11px]">100% Client-Side</span>
         </div>
 
-        {/* Model Engine Badge */}
-        <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900/80 border border-slate-800 text-xs font-medium text-slate-300">
+        {/* Model Engine Badge (hidden on mobile, visible on sm+) */}
+        <div className="hidden sm:flex items-center gap-2 px-2.5 sm:px-3 py-1 rounded-full bg-slate-900/80 border border-slate-800 text-xs font-medium text-slate-300">
           <span className={`w-2 h-2 rounded-full ${
             modelTier === 'budget' 
               ? 'bg-emerald-400' 
@@ -106,25 +133,26 @@ export const Header: React.FC<HeaderProps> = ({
               : 'bg-cyan-400'
           } animate-pulse`} />
           <span className="hidden xl:inline text-slate-400">Engine:</span>
-          <span className="text-cyan-300 font-bold uppercase tracking-wider text-[11px]">
+          <span className="text-cyan-300 font-bold uppercase tracking-wider text-[10px] sm:text-[11px]">
             {modelTier === 'custom' ? 'Custom' : modelTier === 'pro' ? 'Pro Studio' : 'Budget Saver'}
           </span>
         </div>
       </div>
 
       {/* Right: Key Status Indicator, Tier Switcher & Settings */}
-      <div className="flex items-center gap-2 sm:gap-3">
+      <div className="flex items-center gap-1.5 sm:gap-3">
         {/* API Key Status Pill / Action Trigger */}
         {!hasKey ? (
           <button
             type="button"
             onClick={onOpenApiKeyModal}
-            className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-3.5 py-1.5 rounded-full text-xs font-bold transition-all duration-200 border shadow-md group cursor-pointer bg-gradient-to-r from-cyan-500 via-blue-500 to-indigo-600 hover:from-cyan-400 hover:via-blue-400 hover:to-indigo-500 text-white border-cyan-400/60 shadow-cyan-500/25 hover:shadow-cyan-500/40 active:scale-95"
+            className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1.5 rounded-full text-xs font-bold transition-all duration-200 border shadow-md group cursor-pointer bg-gradient-to-r from-cyan-500 via-blue-500 to-indigo-600 hover:from-cyan-400 hover:via-blue-400 hover:to-indigo-500 text-white border-cyan-400/60 shadow-cyan-500/25 hover:shadow-cyan-500/40 active:scale-95 min-h-[36px]"
             title="Configure Gemini API Key for custom generation runs"
             aria-label="+ Enter Gemini Key"
           >
             <span className="whitespace-nowrap font-bold tracking-tight">
-              + Enter Gemini Key
+              <span className="hidden sm:inline">+ Enter Gemini Key</span>
+              <span className="sm:hidden">+ Enter Key</span>
             </span>
             <span className="hidden sm:inline-block text-[10px] font-mono font-medium px-2 py-0.5 rounded-full bg-slate-950/60 text-cyan-200 border border-cyan-400/30">
               Browse Free • Keyless Mode
@@ -134,12 +162,12 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             type="button"
             onClick={onOpenApiKeyModal}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 border shadow-sm group cursor-pointer bg-cyan-950/60 hover:bg-cyan-900/80 border-cyan-500/40 hover:border-cyan-500/70 text-cyan-200"
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 border shadow-sm group cursor-pointer bg-cyan-950/60 hover:bg-cyan-900/80 border-cyan-500/40 hover:border-cyan-500/70 text-cyan-200 min-h-[36px]"
             title="API Key active in session memory (sessionStorage). Click to view or update."
             aria-label="Key Configured"
           >
             <span className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(6,182,212,0.8)]" />
-            <span className="text-[11px] font-mono uppercase tracking-wider">
+            <span className="text-[10px] sm:text-[11px] font-mono uppercase tracking-wider">
               Key Configured
             </span>
             <svg
