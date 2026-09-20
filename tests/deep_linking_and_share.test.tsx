@@ -37,13 +37,12 @@ describe('Deep Linking, URL Synchronization & Share UI Action (Requirements R1-R
 
       // Exploration should mount directly into DisplayArea
       await waitFor(() => {
+        expect(screen.getByText(/← Back to Community Showcase/i)).toBeInTheDocument();
         expect(
           screen.getByRole('heading', { level: 2, name: /Twin-Lens Reflex/i })
         ).toBeInTheDocument();
+        expect(screen.queryByLabelText('Featured Community Deconstructions')).not.toBeInTheDocument();
       });
-
-      // Community Showcase should NOT be rendered when viewing topic
-      expect(screen.queryByLabelText('Featured Community Deconstructions')).not.toBeInTheDocument();
 
       // ApiKeyModal must not open (Browse Free Mode keyless hydration)
       expect(screen.queryByText('Configure Gemini API Key')).not.toBeInTheDocument();
@@ -106,9 +105,11 @@ describe('Deep Linking, URL Synchronization & Share UI Action (Requirements R1-R
       });
 
       // Displays gentle dismissible notice
-      expect(
-        screen.getByText(/Exploration "nonexistent-invalid-item-9999" not found/i)
-      ).toBeInTheDocument();
+      await waitFor(() => {
+        expect(
+          screen.getByText(/Exploration "nonexistent-invalid-item-9999" not found/i)
+        ).toBeInTheDocument();
+      });
 
       // ApiKeyModal should NOT be open
       expect(screen.queryByText('Configure Gemini API Key')).not.toBeInTheDocument();
@@ -316,12 +317,10 @@ describe('Deep Linking, URL Synchronization & Share UI Action (Requirements R1-R
       render(<App />);
 
       await waitFor(() => {
-        expect(
-          screen.getByRole('heading', { level: 2, name: /Twin-Lens Reflex/i })
-        ).toBeInTheDocument();
+        expect(screen.getByText(/← Back to Community Showcase/i)).toBeInTheDocument();
       });
 
-      const copyBtn = screen.getByRole('button', { name: /copy link/i });
+      const copyBtn = await screen.findByRole('button', { name: /copy link/i });
       expect(copyBtn).toBeInTheDocument();
 
       fireEvent.click(copyBtn);
@@ -383,12 +382,10 @@ describe('Deep Linking, URL Synchronization & Share UI Action (Requirements R1-R
       render(<App />);
 
       await waitFor(() => {
-        expect(
-          screen.getByRole('heading', { level: 2, name: /Twin-Lens Reflex/i })
-        ).toBeInTheDocument();
+        expect(screen.getByText(/← Back to Community Showcase/i)).toBeInTheDocument();
       });
 
-      const copyBtn = screen.getByRole('button', { name: /copy link/i });
+      const copyBtn = await screen.findByRole('button', { name: /copy link/i });
       fireEvent.click(copyBtn);
 
       // Verify strict single write
@@ -409,12 +406,10 @@ describe('Deep Linking, URL Synchronization & Share UI Action (Requirements R1-R
       render(<App />);
 
       await waitFor(() => {
-        expect(
-          screen.getByRole('heading', { level: 2, name: /Twin-Lens Reflex/i })
-        ).toBeInTheDocument();
+        expect(screen.getByText(/← Back to Community Showcase/i)).toBeInTheDocument();
       });
 
-      const copyBtn = screen.getByRole('button', { name: /copy link/i });
+      const copyBtn = await screen.findByRole('button', { name: /copy link/i });
       fireEvent.click(copyBtn);
 
       await waitFor(() => {
@@ -437,12 +432,10 @@ describe('Deep Linking, URL Synchronization & Share UI Action (Requirements R1-R
       render(<App />);
 
       await waitFor(() => {
-        expect(
-          screen.getByRole('heading', { level: 2, name: /Twin-Lens Reflex/i })
-        ).toBeInTheDocument();
+        expect(screen.getByText(/← Back to Community Showcase/i)).toBeInTheDocument();
       });
 
-      const headerShareBtn = screen.getByRole('button', { name: /share exploration/i });
+      const headerShareBtn = await screen.findByRole('button', { name: /share exploration/i });
       fireEvent.click(headerShareBtn);
 
       await waitFor(() => {
