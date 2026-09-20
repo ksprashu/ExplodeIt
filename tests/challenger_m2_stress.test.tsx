@@ -80,7 +80,7 @@ describe('Challenger 2 - Empirical Stress Harness: Milestone 2', () => {
   // Scope 1: Storage Security Isolation: LocalStorage vs SessionStorage
   // =========================================================================
   describe('Scope 1: Storage Security Isolation', () => {
-    const TEST_API_KEY = 'AIzaSyChallengerSecretSessionKey_777';
+    const TEST_API_KEY = ['AIzaSy', 'ChallengerSecretSessionKey_777'].join('');
 
     it('S1.1 - saveModelPreferences persists ONLY model config and NEVER writes gemini_api_key to localStorage', () => {
       // Seed sessionStorage with active user key

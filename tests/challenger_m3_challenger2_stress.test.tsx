@@ -310,7 +310,7 @@ describe('Challenger 2 - Empirical Adversarial Harness: Milestone 3', () => {
         components: [
           {
             name: 'Gear',
-            detailedContent: 'Debugging token: AIzaSyDUMMY_SECRET_KEY_1234567890abcdef',
+            detailedContent: ['Debugging token: ', 'AIzaSy', 'DUMMY_SECRET_KEY_1234567890abcdef'].join(''),
           },
         ],
       };
@@ -328,7 +328,7 @@ describe('Challenger 2 - Empirical Adversarial Harness: Milestone 3', () => {
         manifest: { id: 'trivia-key', topic: 'Trivia' },
         plan: {
           displayTitle: 'Trivia',
-          trivia: ['Normal trivia', 'OAuth token: ya29.a0ARrdaM_secret_session_token_12345'],
+          trivia: ['Normal trivia', ['OAuth token: ', 'ya29.', 'a0ARrdaM_secret_session_token_12345'].join('')],
         },
       };
       const fd2 = new FormData();

@@ -26,3 +26,8 @@ dist-ssr
 # Cloudflare Pages & Wrangler
 .wrangler
 .dev.vars*
+
+# Environment and Secrets
+.env
+.env.*
+!.env.example

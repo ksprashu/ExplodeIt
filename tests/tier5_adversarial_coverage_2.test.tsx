@@ -279,7 +279,7 @@ describe('Tier 5 Adversarial Security & Edge Hardening Suite (M6 Challenger 2)',
     });
 
     it('COMB-02: Storage Allowlist × R2 Upload × Zero Leak', () => {
-      controller.setApiKey('AIzaSyDUMMY_SECRET_KEY_1234567890abcdef');
+      controller.setApiKey(['AIzaSy', 'DUMMY_SECRET_KEY_1234567890abcdef'].join(''));
       expect(sessionStore.getItem('gemini_api_key')).not.toBeNull();
 
       const infected = {
@@ -429,7 +429,7 @@ describe('Tier 5 Adversarial Security & Edge Hardening Suite (M6 Challenger 2)',
     });
 
     it('Tier 4 Scenario 5: Forensic Security Auditor (Zero-Leak Boundary Verification)', () => {
-      controller.setApiKey('AIzaSyAUDITOR_LIVE_SECRET_KEY_1234567890');
+      controller.setApiKey(['AIzaSy', 'AUDITOR_LIVE_SECRET_KEY_1234567890'].join(''));
       const infected = {
         ...mockSensitiveInjectedItem,
         liveSessionKey: controller.getApiKey(),
@@ -475,11 +475,12 @@ describe('Tier 5 Adversarial Security & Edge Hardening Suite (M6 Challenger 2)',
     });
 
     it('ADV-02: Direct injection of Gemini API key format (AIzaSy...) throws violation error', () => {
+      const leakedKey = ['AIzaSy', 'DUMMY_RAW_LEAKED_KEY_1234567890'].join('');
       const leakedKeyPayload = {
         manifest: { id: 'test', topic: 'Test' },
         plan: {
           displayTitle: 'Test Plan',
-          originStory: 'Exploded blueprint with leaked key: AIzaSyDUMMY_RAW_LEAKED_KEY_1234567890',
+          originStory: `Exploded blueprint with leaked key: ${leakedKey}`,
         },
       };
 
@@ -489,11 +490,12 @@ describe('Tier 5 Adversarial Security & Edge Hardening Suite (M6 Challenger 2)',
     });
 
     it('ADV-03: Direct injection of OAuth Bearer token (ya29...) throws violation error', () => {
+      const bearerToken = ['Bearer ya29.', 'a0ARrdaM_secret_oauth_token_1234567890'].join('');
       const bearerPayload = {
         manifest: { id: 'test', topic: 'Test' },
         plan: {
           displayTitle: 'Test Plan',
-          originStory: 'Bearer ya29.a0ARrdaM_secret_oauth_token_1234567890',
+          originStory: bearerToken,
         },
       };
 
@@ -503,7 +505,7 @@ describe('Tier 5 Adversarial Security & Edge Hardening Suite (M6 Challenger 2)',
     });
 
     it('ADV-04: Adversarial Gap Observation: Base64-encoded API key bypasses literal regex scanners', () => {
-      const rawKey = 'AIzaSyDUMMY_SECRET_KEY_1234567890abcdef';
+      const rawKey = ['AIzaSy', 'DUMMY_SECRET_KEY_1234567890abcdef'].join('');
       // Base64 encoding of rawKey
       const base64Key = Buffer.from(rawKey).toString('base64');
       expect(base64Key.startsWith('QUl6YVN5')).toBe(true);

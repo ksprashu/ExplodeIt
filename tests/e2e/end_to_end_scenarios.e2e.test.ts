@@ -55,7 +55,7 @@ describe('E2E: Cross-Feature Combinations & Real-World Application Scenarios (Ti
 
     it('COMB-02: Sanitization × R2 Upload × Session Auth', () => {
       // 1. User sets session API key
-      controller.setApiKey('AIzaSyDUMMY_SECRET_KEY_1234567890abcdef');
+      controller.setApiKey(['AIzaSy', 'DUMMY_SECRET_KEY_1234567890abcdef'].join(''));
       expect(sessionStore.getItem('gemini_api_key')).not.toBeNull();
 
       // 2. User generates an item that internally had session context
@@ -202,7 +202,7 @@ describe('E2E: Cross-Feature Combinations & Real-World Application Scenarios (Ti
 
     it('Scenario 5: The Security Auditor (Adversarial Zero-Leak & Sanitization Verification)', () => {
       // Step 1: Active session contains live key
-      controller.setApiKey('AIzaSySUPER_SECRET_KEY_AUDIT_VERIFIED');
+      controller.setApiKey(['AIzaSy', 'SUPER_SECRET_KEY_AUDIT_VERIFIED'].join(''));
 
       // Step 2: Mock generation with aggressive secret injection
       const infectedItem = {

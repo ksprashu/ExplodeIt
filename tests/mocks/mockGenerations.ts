@@ -142,11 +142,15 @@ export const mockBudgetGenerationItem: GenerationItem = {
   ]
 };
 
+// Synthetic credentials constructed at runtime to prevent false-positive GitHub Secret Scanning alerts
+const MOCK_AIZA_DUMMY_KEY = ['AIzaSy', 'DUMMY_SECRET_KEY_1234567890abcdef'].join('');
+const MOCK_YA29_DUMMY_TOKEN = ['Bearer ya29.', 'a0ARrda8-DUMMY_PRIVATE_TOKEN'].join('');
+
 export const mockSensitiveInjectedItem = {
   ...mockCameraGenerationItem,
-  apiKey: 'AIzaSyDUMMY_SECRET_KEY_1234567890abcdef',
-  gemini_api_key: 'AIzaSyDUMMY_SECRET_KEY_1234567890abcdef',
-  auth_token: 'Bearer ya29.a0ARrda8-DUMMY_PRIVATE_TOKEN',
+  apiKey: MOCK_AIZA_DUMMY_KEY,
+  gemini_api_key: MOCK_AIZA_DUMMY_KEY,
+  auth_token: MOCK_YA29_DUMMY_TOKEN,
   userSession: {
     id: 'user_123',
     secretToken: 'secret_abc_123'

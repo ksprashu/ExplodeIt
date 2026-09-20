@@ -149,7 +149,7 @@ describe('Contract: Bundle Packaging & Zero-Leak Sanitization (FEAT-06, FEAT-07)
       assertZeroLeak(sanitized);
 
       const serialized = JSON.stringify(sanitized);
-      expect(serialized).not.toContain('AIzaSyDUMMY_SECRET_KEY_1234567890abcdef');
+      expect(serialized).not.toContain(['AIzaSy', 'DUMMY_SECRET_KEY_1234567890abcdef'].join(''));
       expect(serialized).not.toContain('Bearer ya29');
       expect(serialized).not.toContain('secret_abc_123');
     });

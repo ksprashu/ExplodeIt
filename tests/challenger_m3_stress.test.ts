@@ -365,7 +365,7 @@ describe('Challenger 2 - Empirical Stress Harness: Milestone 3 (FEAT-06, FEAT-07
         manifest: { id: 'leaky-topic-1', topic: 'Leaky Topic' },
         plan: {
           displayTitle: 'Leaky Topic',
-          detailedArticle: 'Here is my secret key: AIzaSyDUMMY_SECRET_KEY_1234567890abcdef',
+          detailedArticle: ['Here is my secret key: ', 'AIzaSy', 'DUMMY_SECRET_KEY_1234567890abcdef'].join(''),
         },
       };
 
@@ -386,7 +386,7 @@ describe('Challenger 2 - Empirical Stress Harness: Milestone 3 (FEAT-06, FEAT-07
         manifest: { id: 'bearer-topic', topic: 'Bearer Topic' },
         plan: {
           displayTitle: 'Bearer Topic',
-          originStory: 'Auth token: ya29.a0ARrdaM1234567890abcdefghijklmnopqr',
+          originStory: ['Auth token: ', 'ya29.', 'a0ARrdaM1234567890abcdefghijklmnopqr'].join(''),
         },
       };
 
@@ -728,7 +728,7 @@ describe('Challenger 2 - Empirical Stress Harness: Milestone 3 (FEAT-06, FEAT-07
     it('C3.6 - uploadCommunityBundle executes client-side zero-leak pre-flight and throws before any network transfer', async () => {
       const bundleWithSecret: SanitizedGenerationBundle = {
         ...sanitizeGenerationItem(mockCameraGenerationItem, 'pro', CANONICAL_MODEL_PRESETS.pro),
-        narrationScript: 'Secret key leaked: AIzaSyDUMMY_SECRET_KEY_1234567890abcdef',
+        narrationScript: ['Secret key leaked: ', 'AIzaSy', 'DUMMY_SECRET_KEY_1234567890abcdef'].join(''),
       };
 
       const fetchSpy = vi.fn();
