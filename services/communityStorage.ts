@@ -18,41 +18,91 @@ import { CANONICAL_MODEL_PRESETS } from '../constants';
 import { mockCommunityStorage } from './mockCommunityStorage';
 import { mediaCache } from './mediaCache';
 
+import { FALLBACK_BLUEPRINT_SVG } from './communityBlueprints';
+
 // ============================================================================
 // Binary Conversion & Slug Utilities
 // ============================================================================
+
+/**
+ * Create a valid binary fallback Blob (SVG, 1x1 PNG, or silent WAV)
+ * instead of returning corrupted blobs containing raw ASCII URL characters.
+ */
+export function createFallbackBlob(fallbackMime = 'application/octet-stream'): Blob {
+  if (fallbackMime.includes('svg')) {
+    return new Blob([FALLBACK_BLUEPRINT_SVG], { type: 'image/svg+xml' });
+  }
+  if (fallbackMime.startsWith('image/')) {
+    // Valid 1x1 transparent PNG binary bytes
+    const pngBytes = new Uint8Array([
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+      0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
+      0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+      0x08, 0x06, 0x00, 0x00, 0x00, 0x1f, 0x15, 0xc4,
+      0x89, 0x00, 0x00, 0x00, 0x0a, 0x49, 0x44, 0x41,
+      0x54, 0x78, 0x9c, 0x63, 0x00, 0x01, 0x00, 0x00,
+      0x05, 0x00, 0x01, 0x0d, 0x0a, 0x2d, 0xb4, 0x00,
+      0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae,
+      0x42, 0x60, 0x82,
+    ]);
+    return new Blob([pngBytes], { type: 'image/png' });
+  }
+  if (fallbackMime.startsWith('audio/')) {
+    // 44-byte silent WAV binary bytes (RIFF .... WAVE fmt .... data ....)
+    const wavBytes = new Uint8Array([
+      0x52, 0x49, 0x46, 0x46, 0x24, 0x00, 0x00, 0x00,
+      0x57, 0x41, 0x56, 0x45, 0x66, 0x6d, 0x74, 0x20,
+      0x10, 0x00, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00,
+      0x44, 0xac, 0x00, 0x00, 0x88, 0x58, 0x01, 0x00,
+      0x02, 0x00, 0x10, 0x00, 0x64, 0x61, 0x74, 0x61,
+      0x00, 0x00, 0x00, 0x00,
+    ]);
+    return new Blob([wavBytes], { type: 'audio/wav' });
+  }
+  return new Blob([], { type: fallbackMime });
+}
 
 /**
  * Convert Data URL (RFC 2397) to a genuine binary Blob
  */
 export function dataUrlToBlob(dataUrl: string, fallbackMime = 'application/octet-stream'): Blob {
   if (!dataUrl || typeof dataUrl !== 'string' || !dataUrl.startsWith('data:')) {
-    return new Blob([dataUrl || ''], { type: fallbackMime });
+    return createFallbackBlob(fallbackMime);
   }
 
   try {
     const commaIndex = dataUrl.indexOf(',');
     if (commaIndex === -1) {
-      return new Blob([dataUrl], { type: fallbackMime });
+      return createFallbackBlob(fallbackMime);
     }
 
     const header = dataUrl.slice(0, commaIndex);
-    const base64 = dataUrl.slice(commaIndex + 1);
+    const payload = dataUrl.slice(commaIndex + 1);
 
-    const mimeMatch = header.match(/data:(.*?);/);
+    const mimeMatch = header.match(/data:([^;,]+)/);
     const mime = mimeMatch ? mimeMatch[1] : fallbackMime;
 
-    // Decode base64 to binary byte array
-    const binaryStr = atob(base64);
-    const len = binaryStr.length;
-    const bytes = new Uint8Array(len);
-    for (let i = 0; i < len; i++) {
-      bytes[i] = binaryStr.charCodeAt(i);
+    if (header.includes(';base64')) {
+      const binaryStr = atob(payload);
+      const len = binaryStr.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) {
+        bytes[i] = binaryStr.charCodeAt(i);
+      }
+      return new Blob([bytes], { type: mime });
+    } else {
+      // UTF-8 or URI-encoded data URL
+      let decoded = payload;
+      try {
+        decoded = decodeURIComponent(payload);
+      } catch {
+        decoded = payload;
+      }
+      return new Blob([decoded], { type: mime });
     }
-    return new Blob([bytes], { type: mime });
   } catch (err) {
-    // Graceful fallback on malformed base64
-    return new Blob([dataUrl], { type: fallbackMime });
+    console.warn('[CommunityStorage] Error parsing data URL, falling back to safe placeholder:', err);
+    return createFallbackBlob(fallbackMime);
   }
 }
 
@@ -64,7 +114,7 @@ export async function urlToBlob(
   fallbackMime = 'application/octet-stream'
 ): Promise<Blob> {
   if (!source) {
-    return new Blob([], { type: fallbackMime });
+    return createFallbackBlob(fallbackMime);
   }
 
   if (typeof Blob !== 'undefined' && source instanceof Blob) {
@@ -72,7 +122,7 @@ export async function urlToBlob(
   }
 
   if (typeof source !== 'string') {
-    return new Blob([], { type: fallbackMime });
+    return createFallbackBlob(fallbackMime);
   }
 
   if (source.startsWith('data:')) {
@@ -95,7 +145,8 @@ export async function urlToBlob(
     try {
       const response = await fetch(source);
       if (!response.ok && !source.startsWith('blob:')) {
-        console.warn(`[CommunityStorage] HTTP ${response.status} resolving ${source}`);
+        console.warn(`[CommunityStorage] HTTP ${response.status} resolving ${source}, returning fallback blob`);
+        return createFallbackBlob(fallbackMime);
       }
       const fetchedBlob = await response.blob();
       const finalBlob = (!fetchedBlob.type || fetchedBlob.type === 'application/octet-stream')
@@ -109,12 +160,13 @@ export async function urlToBlob(
 
       return finalBlob;
     } catch (err) {
-      console.warn(`[CommunityStorage] Error fetching ${source}, falling back:`, err);
-      return new Blob([source], { type: fallbackMime });
+      console.warn(`[CommunityStorage] Error fetching ${source}, falling back to safe placeholder:`, err);
+      return createFallbackBlob(fallbackMime);
     }
   }
 
-  return new Blob([source], { type: fallbackMime });
+  console.warn(`[CommunityStorage] Unrecognized URL format ${source}, returning fallback blob`);
+  return createFallbackBlob(fallbackMime);
 }
 
 /**

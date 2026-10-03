@@ -22,6 +22,13 @@ export interface MockStorageOptions {
 // Canonical Pre-Seeded Catalog Items (from tests/mocks/mockGenerations.ts)
 // ============================================================================
 
+import {
+  TLR_CAMERA_SVG_DATA_URL,
+  TURBOFAN_ENGINE_SVG_DATA_URL,
+  NEURAL_TRANSFORMER_SVG_DATA_URL,
+  DUMMY_AUDIO_DATA_URL,
+} from './communityBlueprints';
+
 export const SEED_COMMUNITY_CATALOG: CommunityCatalogItem[] = [
   {
     id: 'tlr-camera-1726240000000',
@@ -29,11 +36,11 @@ export const SEED_COMMUNITY_CATALOG: CommunityCatalogItem[] = [
     timestamp: '2026-09-13T16:00:00.000Z',
     domain: 'PHYSICAL',
     metaphor: 'Exploded View',
-    infographicUrl: 'https://community.explodeit.org/tlr-camera-1726240000000/infographic.png',
-    assembledUrl: 'https://community.explodeit.org/tlr-camera-1726240000000/assembled.png',
-    videoUrl: 'https://community.explodeit.org/tlr-camera-1726240000000/assembly.mp4',
-    audioUrl: 'https://community.explodeit.org/tlr-camera-1726240000000/narration.mp3',
-    previewUrl: 'https://community.explodeit.org/tlr-camera-1726240000000/preview.jpg',
+    infographicUrl: TLR_CAMERA_SVG_DATA_URL,
+    assembledUrl: TLR_CAMERA_SVG_DATA_URL,
+    videoUrl: undefined,
+    audioUrl: DUMMY_AUDIO_DATA_URL,
+    previewUrl: TLR_CAMERA_SVG_DATA_URL,
   },
   {
     id: 'turbofan-engine-1726240100000',
@@ -41,11 +48,11 @@ export const SEED_COMMUNITY_CATALOG: CommunityCatalogItem[] = [
     timestamp: '2026-09-13T16:05:00.000Z',
     domain: 'PHYSICAL',
     metaphor: 'Exploded View',
-    infographicUrl: 'https://community.explodeit.org/turbofan-engine-1726240100000/infographic.png',
-    assembledUrl: 'https://community.explodeit.org/turbofan-engine-1726240100000/assembled.png',
-    videoUrl: 'https://community.explodeit.org/turbofan-engine-1726240100000/assembly.mp4',
-    audioUrl: 'https://community.explodeit.org/turbofan-engine-1726240100000/narration.mp3',
-    previewUrl: 'https://community.explodeit.org/turbofan-engine-1726240100000/preview.jpg',
+    infographicUrl: TURBOFAN_ENGINE_SVG_DATA_URL,
+    assembledUrl: TURBOFAN_ENGINE_SVG_DATA_URL,
+    videoUrl: undefined,
+    audioUrl: DUMMY_AUDIO_DATA_URL,
+    previewUrl: TURBOFAN_ENGINE_SVG_DATA_URL,
   },
   {
     id: 'neural-transformer-1726240200000',
@@ -53,11 +60,11 @@ export const SEED_COMMUNITY_CATALOG: CommunityCatalogItem[] = [
     timestamp: '2026-09-13T16:10:00.000Z',
     domain: 'SOFTWARE',
     metaphor: 'Data Flow Visualization',
-    infographicUrl: 'https://community.explodeit.org/neural-transformer-1726240200000/infographic.png',
-    assembledUrl: 'https://community.explodeit.org/neural-transformer-1726240200000/assembled.png',
+    infographicUrl: NEURAL_TRANSFORMER_SVG_DATA_URL,
+    assembledUrl: NEURAL_TRANSFORMER_SVG_DATA_URL,
     videoUrl: undefined,
-    audioUrl: 'https://community.explodeit.org/neural-transformer-1726240200000/narration.mp3',
-    previewUrl: 'https://community.explodeit.org/neural-transformer-1726240200000/preview.jpg',
+    audioUrl: DUMMY_AUDIO_DATA_URL,
+    previewUrl: NEURAL_TRANSFORMER_SVG_DATA_URL,
   },
 ];
 

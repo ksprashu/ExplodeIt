@@ -82,6 +82,91 @@ export function resolveItemCategory(item: CommunityCatalogItem): ShowcaseCategor
 }
 
 /**
+ * Render technical icon corresponding to category
+ */
+export function renderCategoryIcon(category: ShowcaseCategory): React.ReactNode {
+  switch (category) {
+    case 'Mechanical':
+      return (
+        <svg className="w-7 h-7 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75}>
+          <circle cx="12" cy="12" r="3" />
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+        </svg>
+      );
+    case 'Anatomy':
+      return (
+        <svg className="w-7 h-7 text-rose-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75}>
+          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+        </svg>
+      );
+    case 'Electronics':
+      return (
+        <svg className="w-7 h-7 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75}>
+          <rect x="4" y="4" width="16" height="16" rx="2" />
+          <rect x="9" y="9" width="6" height="6" />
+          <path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 14h3M1 9h3M1 14h3" />
+        </svg>
+      );
+    case 'Science':
+      return (
+        <svg className="w-7 h-7 text-purple-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75}>
+          <path d="M10 2v7.31L4.2 18.06A2 2 0 0 0 5.86 21h12.28a2 2 0 0 0 1.66-2.94L14 9.31V2" />
+          <line x1="8.5" y1="2" x2="15.5" y2="2" />
+        </svg>
+      );
+    default:
+      return (
+        <svg className="w-7 h-7 text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75}>
+          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+          <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+          <line x1="12" y1="22.08" x2="12" y2="12" />
+        </svg>
+      );
+  }
+}
+
+/**
+ * Technical Blueprint Schematic fallback view displayed when network images fail
+ */
+export function renderBlueprintFallback(
+  category: ShowcaseCategory,
+  topic: string,
+  uniqueId: string
+): React.ReactNode {
+  return (
+    <div
+      className="absolute inset-0 bg-[#0a0f1d] flex flex-col items-center justify-center p-4 text-center select-none overflow-hidden pointer-events-none"
+      data-testid="blueprint-fallback"
+      aria-hidden="true"
+    >
+      <svg className="absolute inset-0 w-full h-full opacity-40 pointer-events-none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <pattern id={`bp-grid-${uniqueId}`} width="20" height="20" patternUnits="userSpaceOnUse">
+            <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#0ea5e9" strokeWidth="0.5" strokeOpacity="0.4" />
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill={`url(#bp-grid-${uniqueId})`} />
+      </svg>
+      <div className="absolute inset-2 border border-cyan-500/25 rounded-xl pointer-events-none" />
+      <div className="absolute top-2.5 left-3 font-mono text-[9px] text-cyan-400/60 uppercase tracking-widest pointer-events-none">
+        SCHEMATIC // {category}
+      </div>
+      <div className="relative z-0 flex flex-col items-center gap-2 max-w-[85%] pointer-events-none">
+        <div className="w-11 h-11 rounded-2xl bg-cyan-950/60 border border-cyan-500/30 flex items-center justify-center shadow-lg shadow-cyan-950/50">
+          {renderCategoryIcon(category)}
+        </div>
+        <div className="font-mono text-xs font-bold text-cyan-200 truncate w-full" data-topic={topic}>
+          Schematic Blueprint
+        </div>
+        <span className="font-mono text-[9px] text-cyan-400/80 uppercase tracking-wider bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-500/30">
+          Deconstruction Blueprint
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/**
  * Resolve whether an item was generated via Pro Studio or Budget Saver tier.
  */
 export function resolveItemModelTier(item: CommunityCatalogItem): 'Pro Studio' | 'Budget Saver' {
@@ -371,11 +456,12 @@ export const CommunityShowcase: React.FC<CommunityShowcaseProps> = ({
       >
         {/* Card Thumbnail Area */}
         <div className="relative aspect-[16/10] overflow-hidden bg-slate-950">
+          {renderBlueprintFallback(category, item.topic, `card-${item.id}`)}
           <img
             src={item.previewUrl || item.infographicUrl}
             alt={item.topic}
             loading="lazy"
-            className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
+            className="relative z-10 w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
             onError={(e) => {
               // Graceful fallback to styled blueprint canvas
               e.currentTarget.style.display = 'none';
@@ -515,7 +601,15 @@ export const CommunityShowcase: React.FC<CommunityShowcaseProps> = ({
                     aria-hidden={!isActive}
                   >
                     {/* Background Backdrop Image with Gradient Vignette */}
-                    <div className="absolute inset-0 -z-10 overflow-hidden">
+                    <div className="absolute inset-0 -z-10 overflow-hidden bg-[#0a0f1d]">
+                      <svg className="absolute inset-0 w-full h-full opacity-20 pointer-events-none" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                          <pattern id={`hero-grid-${item.id}`} width="30" height="30" patternUnits="userSpaceOnUse">
+                            <path d="M 30 0 L 0 0 0 30" fill="none" stroke="#0ea5e9" strokeWidth="0.5" strokeOpacity="0.4" />
+                          </pattern>
+                        </defs>
+                        <rect width="100%" height="100%" fill={`url(#hero-grid-${item.id})`} />
+                      </svg>
                       <img
                         src={item.previewUrl || item.infographicUrl}
                         alt=""
@@ -611,10 +705,11 @@ export const CommunityShowcase: React.FC<CommunityShowcaseProps> = ({
                         className="relative w-full max-w-sm rounded-2xl overflow-hidden border border-slate-700/80 bg-slate-950/80 shadow-2xl p-2 cursor-pointer hover:border-cyan-400/80 hover:shadow-cyan-500/20 transition-all duration-300 group/preview"
                       >
                         <div className="relative aspect-[4/3] rounded-xl overflow-hidden bg-slate-900 flex items-center justify-center">
+                          {renderBlueprintFallback(category, item.topic, `carousel-${item.id}`)}
                           <img
                             src={item.infographicUrl || item.previewUrl}
                             alt={item.topic}
-                            className="w-full h-full object-cover object-center group-hover/preview:scale-105 transition-transform duration-500"
+                            className="relative z-10 w-full h-full object-cover object-center group-hover/preview:scale-105 transition-transform duration-500"
                             onError={(e) => {
                               // Safe visual placeholder fallback
                               e.currentTarget.style.display = 'none';

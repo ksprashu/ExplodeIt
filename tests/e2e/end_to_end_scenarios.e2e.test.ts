@@ -136,7 +136,7 @@ describe('E2E: Cross-Feature Combinations & Real-World Application Scenarios (Ti
 
       // Step 4: Full interactive deconstruction available
       expect(controller.currentTopic.plan.displayTitle).toContain('Turbofan');
-      expect(controller.currentTopic.hasVideo).toBe(true);
+      expect(controller.currentTopic.hasVideo).toBe(Boolean(filtered[0].videoUrl));
       expect(sessionStore.getItem('gemini_api_key')).toBeNull();
     });
 

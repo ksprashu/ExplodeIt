@@ -568,11 +568,11 @@ describe('Challenger 2 - Empirical Stress Harness: Milestone 3 (FEAT-06, FEAT-07
       const [tlr, turbofan, transformer] = SEED_COMMUNITY_CATALOG;
       expect(tlr.topic).toBe('Twin-Lens Reflex (TLR) Camera');
       expect(tlr.domain).toBe('PHYSICAL');
-      expect(tlr.videoUrl).toBeDefined();
+      expect(tlr.videoUrl).toBeUndefined();
 
       expect(turbofan.topic).toBe('High-Bypass Turbofan Jet Engine');
       expect(turbofan.domain).toBe('PHYSICAL');
-      expect(turbofan.videoUrl).toBeDefined();
+      expect(turbofan.videoUrl).toBeUndefined();
 
       expect(transformer.topic).toBe('Transformer Attention Architecture');
       expect(transformer.domain).toBe('SOFTWARE');
@@ -580,10 +580,10 @@ describe('Challenger 2 - Empirical Stress Harness: Milestone 3 (FEAT-06, FEAT-07
 
       for (const item of SEED_COMMUNITY_CATALOG) {
         expect(item.id).toBeTruthy();
-        expect(item.infographicUrl).toContain('https://');
-        expect(item.assembledUrl).toContain('https://');
-        expect(item.audioUrl).toContain('https://');
-        expect(item.previewUrl).toContain('https://');
+        expect(item.infographicUrl.startsWith('data:image/svg+xml') || item.infographicUrl.startsWith('https://')).toBe(true);
+        expect(item.assembledUrl.startsWith('data:image/svg+xml') || item.assembledUrl.startsWith('https://')).toBe(true);
+        expect(item.audioUrl.startsWith('data:audio/wav') || item.audioUrl.startsWith('https://')).toBe(true);
+        expect(item.previewUrl.startsWith('data:image/svg+xml') || item.previewUrl.startsWith('https://')).toBe(true);
       }
     });
 

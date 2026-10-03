@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import { GenerationItem, ComponentPart, GenerationStatus } from '../types';
 import { MODEL_REGISTRY } from '../constants';
 import { getCanonicalExplorationUrl, copyToClipboard } from '../services/urlState';
+import { FALLBACK_BLUEPRINT_SVG_DATA_URL } from '../services/communityBlueprints';
 
 export interface DisplayAreaProps {
   item: GenerationItem | null;
@@ -34,6 +35,8 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status, onBackToShowcas
   const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showOverlays, setShowOverlays] = useState(true);
   const [hoveredPartIndex, setHoveredPartIndex] = useState<number | null>(null);
+  const [infographicError, setInfographicError] = useState(false);
+  const [assembledError, setAssembledError] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioInstanceRef = useRef<HTMLAudioElement | null>(null);
   const prevItemIdRef = useRef<string | null>(null);
@@ -51,7 +54,7 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status, onBackToShowcas
   };
 
   useEffect(() => {
-    // Reset audio state when item changes
+    // Reset audio and image error state when item changes
     if (prevItemIdRef.current !== null && prevItemIdRef.current !== item?.id) {
       const audio = audioInstanceRef.current || audioRef.current;
       if (audio) {
@@ -70,6 +73,8 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status, onBackToShowcas
       setSelectedComponent(null);
       setModalImage(null);
       setModalVideo(null);
+      setInfographicError(false);
+      setAssembledError(false);
     }
     prevItemIdRef.current = item?.id ?? null;
   }, [item?.id, item?.audioUrl]);
@@ -206,6 +211,47 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status, onBackToShowcas
       // 2. Show Assembled Image if ready (and Video not yet taking this slot)
       // Note: If video IS requested, the Assembled Image stays here UNTIL video is done.
       if (assembledUrl) {
+          if (assembledError) {
+              return (
+                <div 
+                  className="relative group w-full h-full flex flex-col items-center justify-center p-6 bg-[#0a0f1d] border border-cyan-900/40 rounded-xl cursor-zoom-in overflow-hidden"
+                  onClick={() => setModalImage(FALLBACK_BLUEPRINT_SVG_DATA_URL)}
+                >
+                   <div 
+                     className="absolute inset-0 opacity-20 pointer-events-none" 
+                     style={{
+                       backgroundImage: 'linear-gradient(to right, rgba(56, 189, 248, 0.15) 1px, transparent 1px), linear-gradient(to bottom, rgba(56, 189, 248, 0.15) 1px, transparent 1px)',
+                       backgroundSize: '24px 24px'
+                     }}
+                   />
+                   <div className="absolute top-4 left-4 bg-black/70 backdrop-blur px-3 py-1 rounded-full text-xs font-mono text-cyan-400 border border-cyan-500/30 z-10 pointer-events-none">
+                       {getModelLabel(item?.config?.assembled, 'GEMINI 3 PRO IMAGE').toUpperCase()}
+                   </div>
+                   <div className="relative z-10 flex flex-col items-center text-center gap-3 max-w-sm">
+                       <div className="w-14 h-14 rounded-xl bg-cyan-950/60 border border-cyan-500/40 flex items-center justify-center text-cyan-400 shadow-[0_0_20px_rgba(6,182,212,0.2)]">
+                           <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                           </svg>
+                       </div>
+                       <div>
+                           <div className="font-mono text-xs font-semibold tracking-wider text-cyan-400 uppercase">
+                               TECHNICAL BLUEPRINT SCHEMATIC
+                           </div>
+                           <div className="text-white font-bold text-base mt-1 line-clamp-1">
+                               {plan.displayTitle}
+                           </div>
+                           <p className="text-xs text-slate-400 mt-1">
+                               Assembled specification schematic loaded from vector blueprint repository.
+                           </p>
+                       </div>
+                       <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-950/80 border border-cyan-500/40 text-[10px] font-mono text-cyan-300">
+                           <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span>
+                           ASSEMBLED BLUEPRINT ACTIVE
+                       </span>
+                   </div>
+                </div>
+              );
+          }
           return (
              <div className="relative group w-full h-full">
                 <img 
@@ -213,6 +259,7 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status, onBackToShowcas
                     alt="Assembled View" 
                     className="w-full h-full object-cover cursor-zoom-in hover:scale-105 transition-transform duration-700"
                     onClick={() => setModalImage(assembledUrl)}
+                    onError={() => setAssembledError(true)}
                 />
                 <div className="absolute top-4 left-4 bg-black/70 backdrop-blur px-3 py-1 rounded-full text-xs font-mono text-cyan-400 border border-cyan-500/30 z-10 pointer-events-none">
                     {getModelLabel(item?.config?.assembled, 'GEMINI 3 PRO IMAGE').toUpperCase()}
@@ -244,6 +291,48 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status, onBackToShowcas
   const renderRightMedia = () => {
       // 1. Show Infographic
       if (infographicUrl) {
+           if (infographicError) {
+               return (
+                 <div 
+                   className="relative group w-full h-full flex flex-col items-center justify-center p-6 bg-[#0a0f1d] border border-purple-900/40 rounded-xl cursor-zoom-in overflow-hidden"
+                   onClick={() => setModalImage(FALLBACK_BLUEPRINT_SVG_DATA_URL)}
+                 >
+                    <div 
+                      className="absolute inset-0 opacity-20 pointer-events-none" 
+                      style={{
+                        backgroundImage: 'linear-gradient(to right, rgba(168, 85, 247, 0.15) 1px, transparent 1px), linear-gradient(to bottom, rgba(168, 85, 247, 0.15) 1px, transparent 1px)',
+                        backgroundSize: '24px 24px'
+                      }}
+                    />
+                    <div className="absolute top-4 left-4 bg-black/70 backdrop-blur px-3 py-1 rounded-full text-xs font-mono text-purple-400 border border-purple-500/30 z-10 pointer-events-none">
+                        {getModelLabel(item?.config?.infographic, 'GEMINI 3 PRO IMAGE').toUpperCase()}
+                    </div>
+                    <div className="relative z-10 flex flex-col items-center text-center gap-3 max-w-sm">
+                        <div className="w-14 h-14 rounded-xl bg-purple-950/60 border border-purple-500/40 flex items-center justify-center text-purple-400 shadow-[0_0_20px_rgba(168,85,247,0.2)]">
+                            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <div className="font-mono text-xs font-semibold tracking-wider text-purple-400 uppercase">
+                                EXPLODED BLUEPRINT SCHEMATIC
+                            </div>
+                            <div className="text-white font-bold text-base mt-1 line-clamp-1">
+                                {plan.displayTitle}
+                            </div>
+                            <p className="text-xs text-slate-400 mt-1">
+                                Deconstructed component schematic loaded from vector blueprint repository.
+                            </p>
+                        </div>
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-950/80 border border-purple-500/40 text-[10px] font-mono text-purple-300">
+                            <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse"></span>
+                            EXPLODED BLUEPRINT ACTIVE
+                        </span>
+                    </div>
+                 </div>
+               );
+           }
+
            const activeParts = (components && components.length > 0)
              ? components
              : (plan.componentList || []).map(name => ({
@@ -260,6 +349,7 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status, onBackToShowcas
                     alt="Infographic View" 
                     className="w-full h-full object-contain bg-slate-950 cursor-zoom-in hover:scale-105 transition-transform duration-700"
                     onClick={() => setModalImage(infographicUrl)}
+                    onError={() => setInfographicError(true)}
                 />
                 <div className="absolute top-4 left-4 bg-black/70 backdrop-blur px-3 py-1 rounded-full text-xs font-mono text-purple-400 border border-purple-500/30 z-10 pointer-events-none">
                      {getModelLabel(item?.config?.infographic, 'GEMINI 3 PRO IMAGE').toUpperCase()}
@@ -374,6 +464,25 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status, onBackToShowcas
   const renderHeaderImage = () => {
       // 1. If Video is completed, we move the Assembled Image here.
       if (hasVideo && (status === GenerationStatus.COMPLETED || status === GenerationStatus.IDLE) && assembledUrl) {
+          if (assembledError) {
+              return (
+                <div 
+                  className="w-full lg:w-80 shrink-0 h-48 lg:h-auto rounded-2xl bg-[#0a0f1d] border border-cyan-900/40 p-4 flex flex-col items-center justify-center text-center gap-2 cursor-zoom-in relative animate-fade-in overflow-hidden"
+                  onClick={() => setModalImage(FALLBACK_BLUEPRINT_SVG_DATA_URL)}
+                >
+                   <div className="w-8 h-8 rounded-lg bg-cyan-950 border border-cyan-500/40 flex items-center justify-center text-cyan-400">
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                   </div>
+                   <div className="text-[11px] font-mono text-cyan-400 uppercase tracking-wider">BLUEPRINT SCHEMATIC</div>
+                   <div className="text-xs text-white font-bold truncate max-w-full">{plan.displayTitle}</div>
+                   <div className="absolute bottom-2 right-2 bg-black/70 backdrop-blur px-2 py-1 rounded text-[10px] font-mono text-cyan-400 border border-cyan-500/30">
+                      ASSEMBLED
+                   </div>
+                </div>
+              );
+          }
           return (
             <div className="w-full lg:w-80 shrink-0 h-48 lg:h-auto rounded-2xl overflow-hidden border border-slate-700 relative group animate-fade-in">
                 <img 
@@ -381,6 +490,7 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status, onBackToShowcas
                     alt="Assembled Object" 
                     className="w-full h-full object-cover cursor-zoom-in hover:scale-105 transition-transform duration-500"
                     onClick={() => setModalImage(assembledUrl)}
+                    onError={() => setAssembledError(true)}
                 />
                  <div className="absolute bottom-2 right-2 bg-black/70 backdrop-blur px-2 py-1 rounded text-[10px] font-mono text-cyan-400 border border-cyan-500/30">
                     ASSEMBLED
@@ -789,6 +899,9 @@ const DisplayArea: React.FC<DisplayAreaProps> = ({ item, status, onBackToShowcas
                     alt="Full screen" 
                     className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl border border-slate-800"
                     onClick={(e) => e.stopPropagation()}
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).src = FALLBACK_BLUEPRINT_SVG_DATA_URL;
+                    }}
                 />
                 <div className="mt-6 flex gap-4" onClick={(e) => e.stopPropagation()}>
                     <button 

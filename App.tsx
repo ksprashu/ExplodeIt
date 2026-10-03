@@ -285,6 +285,9 @@ const App: React.FC = () => {
   const historyRef = React.useRef(history);
   historyRef.current = history;
 
+  const currentIdRef = React.useRef(currentId);
+  currentIdRef.current = currentId;
+
   // Model Tier & Configuration State
   const [modelPreferences, setModelPreferences] = useState<{ tier: ModelTier; config: StageModelConfig }>(() => loadModelPreferences());
   const [isModelSettingsOpen, setIsModelSettingsOpen] = useState(false);
@@ -563,9 +566,7 @@ const App: React.FC = () => {
         setCurrentId(null);
         setUrlNotification(null);
         setError(null);
-        if (!isProcessingRef.current) {
-          setStatus(GenerationStatus.IDLE);
-        }
+        setStatus(GenerationStatus.IDLE);
         return;
       }
 
@@ -812,9 +813,11 @@ const App: React.FC = () => {
 
     setHistory(prev => [...prev, newItem]);
     setCurrentId(id);
+    currentIdRef.current = id;
     setStatus(GenerationStatus.PLANNING);
     setError(null);
     setUrlNotification(null);
+    syncUrlToExploration(id, 'push');
 
     const usageLog: TokenUsage[] = [...initialUsage];
 
@@ -834,25 +837,33 @@ const App: React.FC = () => {
       updateItem(id, { plan, components: initialComponents, usage: usageLog });
 
       // 2. Generate Infographic
-      setStatus(GenerationStatus.GENERATING_INFOGRAPHIC);
+      if (currentIdRef.current === id) {
+        setStatus(GenerationStatus.GENERATING_INFOGRAPHIC);
+      }
       const infoImg = await generateInfographic(cleanPrompt, plan, currentConfig);
       usageLog.push(infoImg.usage);
       updateItem(id, { infographicUrl: infoImg.url, usage: usageLog });
 
       // 3. Generate Assembled Image
-      setStatus(GenerationStatus.GENERATING_ASSEMBLY);
+      if (currentIdRef.current === id) {
+        setStatus(GenerationStatus.GENERATING_ASSEMBLY);
+      }
       const assembledImg = await generateAssembledImage(cleanPrompt, plan.displayTitle, plan.originStory, plan.domainType, infoImg.url, currentConfig);
       usageLog.push(assembledImg.usage);
       updateItem(id, { assembledUrl: assembledImg.url, usage: usageLog });
 
       // 4. Enrich Component Details
-      setStatus(GenerationStatus.ENRICHING);
+      if (currentIdRef.current === id) {
+        setStatus(GenerationStatus.ENRICHING);
+      }
       const enrichedDetails = await enrichComponentDetails(cleanPrompt, plan.componentList, currentConfig);
       usageLog.push(...enrichedDetails.usage);
       updateItem(id, { components: enrichedDetails.data, usage: usageLog });
 
       // 5. Generate Video & Audio (Parallel)
-      setStatus(GenerationStatus.ANIMATING);
+      if (currentIdRef.current === id) {
+        setStatus(GenerationStatus.ANIMATING);
+      }
       
       const promises: Promise<any>[] = [];
 
@@ -885,8 +896,10 @@ const App: React.FC = () => {
 
       await Promise.all(promises);
 
-      setStatus(GenerationStatus.COMPLETED);
-      syncUrlToExploration(id, 'push');
+      if (currentIdRef.current === id) {
+        setStatus(GenerationStatus.COMPLETED);
+        syncUrlToExploration(id, 'replace');
+      }
 
       // Snapshot completed generation item for contribution modal
       const completedItem: GenerationItem = {
@@ -916,7 +929,7 @@ const App: React.FC = () => {
         }
       })();
 
-      if (!isOptedOut) {
+      if (!isOptedOut && currentIdRef.current === id) {
         setTimeout(() => {
           setContributeItem(completedItem);
           setIsContributeModalOpen(true);
@@ -933,12 +946,16 @@ const App: React.FC = () => {
            setError("Invalid API Key. Please check your key and try again.");
            setPendingPrompt({ prompt: cleanPrompt, withVideo });
            setIsModalOpen(true); // Re-open modal on auth failure
-           setStatus(GenerationStatus.FAILED);
+           if (currentIdRef.current === id) {
+             setStatus(GenerationStatus.FAILED);
+           }
            return;
       }
 
       setError(msg);
-      setStatus(GenerationStatus.FAILED);
+      if (currentIdRef.current === id) {
+        setStatus(GenerationStatus.FAILED);
+      }
     }
   };
 
@@ -1117,11 +1134,10 @@ const App: React.FC = () => {
         onSelect={(item) => {
             activeNavigationRef.current++;
             setCurrentId(item.id);
+            currentIdRef.current = item.id;
             setError(null);
             setUrlNotification(null);
-            if (!isProcessing) {
-              setStatus(GenerationStatus.IDLE); 
-            }
+            setStatus(GenerationStatus.IDLE);
             setIsMobileSidebarOpen(false);
             syncUrlToExploration(item.id, 'push');
         }}

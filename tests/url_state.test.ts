@@ -260,6 +260,22 @@ describe('URL State Utilities: syncUrlToExploration', () => {
     expect(pushSpy).toHaveBeenCalledTimes(1); // Not called second time
   });
 
+  it('avoids duplicate history entries when completion calls syncUrlToExploration with replace mode', () => {
+    const pushSpy = vi.spyOn(window.history, 'pushState');
+    const replaceSpy = vi.spyOn(window.history, 'replaceState');
+
+    // 1. Initial generation start: pushState is called once
+    syncUrlToExploration('quantum-computer-100', 'push');
+    expect(pushSpy).toHaveBeenCalledTimes(1);
+    expect(window.location.search).toBe('?item=quantum-computer-100');
+
+    // 2. Generation completion: replace mode is idempotent and does not push a new history entry
+    syncUrlToExploration('quantum-computer-100', 'replace');
+    expect(pushSpy).toHaveBeenCalledTimes(1); // No second push
+    expect(replaceSpy).toHaveBeenCalledTimes(0); // Already matches clean item, no-op
+    expect(window.location.search).toBe('?item=quantum-computer-100');
+  });
+
   it('cleans up ?item and ?topic from url.hash when synchronizing URL', () => {
     window.history.pushState({}, '', '/#/view?item=old-item');
     syncUrlToExploration('new-item', 'push');
